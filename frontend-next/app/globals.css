@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 20% 98%;
+  --foreground: 224 30% 18%;
+  --card: 0 0% 100%;
+  --muted: 215 16% 92%;
+  --primary: 220 70% 50%;
+  --border: 215 20% 85%;
+}
+
+.dark {
+  --background: 220 20% 9%;
+  --foreground: 220 15% 92%;
+  --card: 220 18% 14%;
+  --muted: 220 12% 20%;
+  --primary: 212 90% 60%;
+  --border: 220 15% 28%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+}
+
+.dashboard-bg {
+  background-image: radial-gradient(circle at 10% 20%, rgba(28, 100, 242, 0.08), transparent 35%),
+    radial-gradient(circle at 90% 0%, rgba(16, 185, 129, 0.08), transparent 40%);
+}
+
+.contagion-pulse {
+  animation: contagion-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes contagion-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}

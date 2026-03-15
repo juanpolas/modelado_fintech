@@ -1,0 +1,6 @@
+{
+  "llm_provider": "mock",
+  "llm_base_url": "",
+  "llm_model": "qwen-plus",
+  "note": "Do not store real customer or PII data in this platform."
+}

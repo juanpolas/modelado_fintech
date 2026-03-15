@@ -1,203 +1,313 @@
-<div align="center">
+# MiroFish Argentina Fintech Behavior Simulation Platform
 
-<img src="./static/image/MiroFish_logo_compressed.jpeg" alt="MiroFish Logo" width="75%"/>
+## Project Overview
+This repository adapts the open-source [MiroFish](https://github.com/666ghj/MiroFish) into a web-based fintech behavior simulation platform focused on Argentina. It simulates synthetic user behavior under product, macro, company, and future-scenario conditions.
 
-<a href="https://trendshift.io/repositories/16144" target="_blank"><img src="https://trendshift.io/api/badge/repositories/16144" alt="666ghj%2FMiroFish | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+## How MiroFish Was Adapted
+### How MiroFish works today (base repo)
+- Backend was Flask-first, built around multi-agent social simulation workflows (graph building, environment setup, simulation, reporting).
+- Frontend was a Vue app for the original multi-step simulation flow.
+- LLM integration existed for simulation/report tasks with OpenAI-compatible APIs.
+- Persistence existed for project/simulation artifacts in upload folders.
 
-简洁通用的群体智能引擎，预测万物
-</br>
-<em>A Simple and Universal Swarm Intelligence Engine, Predicting Anything</em>
+### Reused
+- Monorepo structure (`backend`, `frontend`, root scripts).
+- Vue + Vite frontend stack.
+- OpenAI-compatible LLM access pattern, now generalized by provider vars.
 
-<a href="https://www.shanda.com/" target="_blank"><img src="./static/image/shanda_logo.png" alt="666ghj%2MiroFish | Shanda" height="40"/></a>
+### Modified
+- Backend adapted to a Flask MVP service (base repo already Flask) for fintech simulation APIs.
+- Frontend replaced with a pragmatic dashboard flow: gate + simulation + managers + runs + settings.
+- Config and start scripts updated for local and RunPod Pod workflows.
 
-[![GitHub Stars](https://img.shields.io/github/stars/666ghj/MiroFish?style=flat-square&color=DAA520)](https://github.com/666ghj/MiroFish/stargazers)
-[![GitHub Watchers](https://img.shields.io/github/watchers/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/watchers)
-[![GitHub Forks](https://img.shields.io/github/forks/666ghj/MiroFish?style=flat-square)](https://github.com/666ghj/MiroFish/network)
-[![Docker](https://img.shields.io/badge/Docker-Build-2496ED?style=flat-square&logo=docker&logoColor=white)](https://hub.docker.com/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/666ghj/MiroFish)
+### Added
+- Access-code gate using cookie session (`APP_ACCESS_CODE`).
+- Dynamic archetype/scenario CRUD with SQLite persistence.
+- Argentina-specific simulation engine and default archetypes/scenarios.
+- Future scenario translator, global impact translator, tactical strategy advisor, disruptive innovation advisor.
+- Run persistence, duplication, export-ready JSON.
+- Tests for simulation/parsing/fallback.
 
-[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.com/channels/1469200078932545606/1469201282077163739)
-[![X](https://img.shields.io/badge/X-Follow-000000?style=flat-square&logo=x&logoColor=white)](https://x.com/mirofish_ai)
-[![Instagram](https://img.shields.io/badge/Instagram-Follow-E4405F?style=flat-square&logo=instagram&logoColor=white)](https://www.instagram.com/mirofish_ai/)
+## Architecture
+- `backend`: Flask + SQLite + simulation engine + LLM abstraction.
+- `frontend`: Vue SPA with required pages and charts.
+- `data`: SQLite DB (`fintech_sim.db`) and runtime artifacts.
+- `scripts`: local/RunPod setup and startup helpers.
+- `docker`: optional container flow.
 
-[English](./README-EN.md) | [中文文档](./README.md)
+## Key Features
+- Public URL access gate with shared code and logout.
+- Dynamic archetype management (CRUD, duplicate, import/export JSON).
+- Dynamic scenario management (CRUD, duplicate, import/export JSON).
+- Country + company context editing per simulation.
+- Future scenario and global-event impact translation into structured qualitative variables.
+- Multi-step simulation with synthetic Argentine fintech user agents.
+- Tactical recommendations and disruptive innovation ideas.
+- Past runs, run duplication, run export.
+- DeepSeek/Qwen/mock provider switching through env vars.
 
-</div>
-
-## ⚡ 项目概述
-
-**MiroFish** 是一款基于多智能体技术的新一代 AI 预测引擎。通过提取现实世界的种子信息（如突发新闻、政策草案、金融信号），自动构建出高保真的平行数字世界。在此空间内，成千上万个具备独立人格、长期记忆与行为逻辑的智能体进行自由交互与社会演化。你可透过「上帝视角」动态注入变量，精准推演未来走向——**让未来在数字沙盘中预演，助决策在百战模拟后胜出**。
-
-> 你只需：上传种子材料（数据分析报告或者有趣的小说故事），并用自然语言描述预测需求</br>
-> MiroFish 将返回：一份详尽的预测报告，以及一个可深度交互的高保真数字世界
-
-### 我们的愿景
-
-MiroFish 致力于打造映射现实的群体智能镜像，通过捕捉个体互动引发的群体涌现，突破传统预测的局限：
-
-- **于宏观**：我们是决策者的预演实验室，让政策与公关在零风险中试错
-- **于微观**：我们是个人用户的创意沙盘，无论是推演小说结局还是探索脑洞，皆可有趣、好玩、触手可及
-
-从严肃预测到趣味仿真，我们让每一个如果都能看见结果，让预测万物成为可能。
-
-## 🌐 在线体验
-
-欢迎访问在线 Demo 演示环境，体验我们为你准备的一次关于热点舆情事件的推演预测：[mirofish-live-demo](https://666ghj.github.io/mirofish-demo/)
-
-## 📸 系统截图
-
-<div align="center">
-<table>
-<tr>
-<td><img src="./static/image/Screenshot/运行截图1.png" alt="截图1" width="100%"/></td>
-<td><img src="./static/image/Screenshot/运行截图2.png" alt="截图2" width="100%"/></td>
-</tr>
-<tr>
-<td><img src="./static/image/Screenshot/运行截图3.png" alt="截图3" width="100%"/></td>
-<td><img src="./static/image/Screenshot/运行截图4.png" alt="截图4" width="100%"/></td>
-</tr>
-<tr>
-<td><img src="./static/image/Screenshot/运行截图5.png" alt="截图5" width="100%"/></td>
-<td><img src="./static/image/Screenshot/运行截图6.png" alt="截图6" width="100%"/></td>
-</tr>
-</table>
-</div>
-
-## 🎬 演示视频
-
-### 1. 武汉大学舆情推演预测 + MiroFish项目讲解
-
-<div align="center">
-<a href="https://www.bilibili.com/video/BV1VYBsBHEMY/" target="_blank"><img src="./static/image/武大模拟演示封面.png" alt="MiroFish Demo Video" width="75%"/></a>
-
-点击图片查看使用微舆BettaFish生成的《武大舆情报告》进行预测的完整演示视频
-</div>
-
-### 2. 《红楼梦》失传结局推演预测
-
-<div align="center">
-<a href="https://www.bilibili.com/video/BV1cPk3BBExq" target="_blank"><img src="./static/image/红楼梦模拟推演封面.jpg" alt="MiroFish Demo Video" width="75%"/></a>
-
-点击图片查看基于《红楼梦》前80回数十万字，MiroFish深度预测失传结局
-</div>
-
-> **金融方向推演预测**、**时政要闻推演预测**等示例陆续更新中...
-
-## 🔄 工作流程
-
-1. **图谱构建**：现实种子提取 & 个体与群体记忆注入 & GraphRAG构建
-2. **环境搭建**：实体关系抽取 & 人设生成 & 环境配置Agent注入仿真参数
-3. **开始模拟**：双平台并行模拟 & 自动解析预测需求 & 动态更新时序记忆
-4. **报告生成**：ReportAgent拥有丰富的工具集与模拟后环境进行深度交互
-5. **深度互动**：与模拟世界中的任意一位进行对话 & 与ReportAgent进行对话
-
-## 🚀 快速开始
-
-### 一、源码部署（推荐）
-
-#### 前置要求
-
-| 工具 | 版本要求 | 说明 | 安装检查 |
-|------|---------|------|---------|
-| **Node.js** | 18+ | 前端运行环境，包含 npm | `node -v` |
-| **Python** | ≥3.11, ≤3.12 | 后端运行环境 | `python --version` |
-| **uv** | 最新版 | Python 包管理器 | `uv --version` |
-
-#### 1. 配置环境变量
-
+## Local Development Setup
 ```bash
-# 复制示例配置文件
+git clone https://github.com/666ghj/MiroFish.git
+cd MiroFish
 cp .env.example .env
+# set APP_ACCESS_CODE in .env
 
-# 编辑 .env 文件，填入必要的 API 密钥
+make setup
+make dev
 ```
 
-**必需的环境变量：**
+Default URLs:
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:8000`
 
-```env
-# LLM API配置（支持 OpenAI SDK 格式的任意 LLM API）
-# 推荐使用阿里百炼平台qwen-plus模型：https://bailian.console.aliyun.com/
-# 注意消耗较大，可先进行小于40轮的模拟尝试
-LLM_API_KEY=your_api_key
-LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-LLM_MODEL_NAME=qwen-plus
+### Optional Modern Frontend (Next.js)
 
-# Zep Cloud 配置
-# 每月免费额度即可支撑简单使用：https://app.getzep.com/
-ZEP_API_KEY=your_zep_api_key
-```
-
-#### 2. 安装依赖
+An upgraded demo-oriented frontend is available in `frontend-next/`.
 
 ```bash
-# 一键安装所有依赖（根目录 + 前端 + 后端）
-npm run setup:all
-```
-
-或者分步安装：
-
-```bash
-# 安装 Node 依赖（根目录 + 前端）
-npm run setup
-
-# 安装 Python 依赖（后端，自动创建虚拟环境）
-npm run setup:backend
-```
-
-#### 3. 启动服务
-
-```bash
-# 同时启动前后端（在项目根目录执行）
+cd frontend-next
+cp .env.example .env.local
+# set NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 (or your RunPod backend URL)
+npm install
 npm run dev
 ```
 
-**服务地址：**
-- 前端：`http://localhost:3000`
-- 后端 API：`http://localhost:5001`
+Default URL: `http://localhost:3000`
 
-**单独启动：**
+## Environment Variables
+```env
+APP_ACCESS_CODE=change-me
+SESSION_SECRET=replace-with-long-random-secret
+LLM_PROVIDER=mock
+LLM_BASE_URL=
+LLM_API_KEY=
+LLM_MODEL=qwen-plus
+BACKEND_HOST=0.0.0.0
+BACKEND_PORT=8000
+FRONTEND_PORT=3000
+FRONTEND_ORIGIN=http://localhost:3000
+DATABASE_PATH=./data/fintech_sim.db
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 
-```bash
-npm run backend   # 仅启动后端
-npm run frontend  # 仅启动前端
+X_API_KEY=
+X_API_SECRET=
+X_BEARER_TOKEN=
+X_CLIENT_ID=
+X_CLIENT_SECRET=
+X_QUERY_DEFAULT=(argentina OR "dolar blue" OR devaluacion OR inflacion OR bancos OR fintech OR "mercado pago" OR "naranja x" OR "uala" OR corralito OR "retiro de fondos" OR stablecoins OR "bitcoin argentina" OR cashback OR promos OR bcra) lang:es -is:retweet
+X_MAX_RESULTS=50
+
+NEWS_REFRESH_INTERVAL_MINUTES=20
+NEWS_SOURCES_ENABLED=
+NEWS_FETCH_LIMIT_PER_SOURCE=12
+SIGNALS_BACKGROUND_ENABLED=false
 ```
 
-### 二、Docker 部署
+## Configuring DeepSeek
+```env
+LLM_PROVIDER=deepseek
+LLM_BASE_URL=https://api.deepseek.com/v1
+LLM_API_KEY=your_key
+LLM_MODEL=deepseek-chat
+```
 
+## Configuring Qwen
+```env
+LLM_PROVIDER=qwen
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+LLM_API_KEY=your_key
+LLM_MODEL=qwen-plus
+```
+
+## Running In Mock Mode
+```env
+LLM_PROVIDER=mock
+```
+No external API calls are needed; deterministic fallback remains active.
+
+## API Reference
+- `GET /health`
+- `POST /simulate`
+- `GET /scenarios`
+- `POST /scenarios`
+- `PUT /scenarios/{id}`
+- `DELETE /scenarios/{id}`
+- `GET /archetypes`
+- `POST /archetypes`
+- `PUT /archetypes/{id}`
+- `DELETE /archetypes/{id}`
+- `GET /runs`
+- `GET /runs/{id}`
+- `POST /runs/{id}/duplicate`
+- `POST /translate-scenario`
+- `POST /impact-translate`
+- `POST /strategy-recommend`
+- `POST /innovation-recommend`
+- `POST /signals/twitter/fetch`
+- `POST /signals/twitter/analyze`
+- `POST /signals/news/fetch`
+- `POST /signals/news/analyze`
+- `POST /signals/fuse`
+- `GET /signals/recent`
+- `POST /signals/refresh`
+
+Support endpoints:
+- `POST /auth/login`
+- `POST /auth/logout`
+- `GET /auth/status`
+- `GET /settings`
+- `PUT /settings`
+
+## Sample curl Commands
 ```bash
-# 1. 配置环境变量（同源码部署）
+curl -X POST http://localhost:8000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"code":"change-me"}' \
+  -c cookies.txt
+
+curl http://localhost:8000/archetypes -b cookies.txt
+
+curl -X POST http://localhost:8000/translate-scenario \
+  -H 'Content-Type: application/json' -b cookies.txt \
+  -d '{"text":"Cambio de gobierno con incertidumbre"}'
+
+curl -X POST http://localhost:8000/impact-translate \
+  -H 'Content-Type: application/json' -b cookies.txt \
+  -d '{"text":"There is a war in the Middle East"}'
+
+curl -X POST http://localhost:8000/signals/twitter/fetch \
+  -H 'Content-Type: application/json' -b cookies.txt \
+  -d '{"query":"dolar blue OR devaluacion argentina lang:es -is:retweet","max_results":40}'
+
+curl -X POST http://localhost:8000/signals/news/analyze \
+  -H 'Content-Type: application/json' -b cookies.txt \
+  -d '{}'
+
+curl -X POST http://localhost:8000/signals/fuse \
+  -H 'Content-Type: application/json' -b cookies.txt \
+  -d '{}'
+```
+
+## Real-World Signals Layer
+- **Twitter/X Live**: real X API recent search integration (requires `X_BEARER_TOKEN`).
+- **News Live**: RSS-first + parser adapters for Argentine outlets.
+- **Signal Fusion Engine**: combines Twitter narratives + news events + user context into reviewed simulation modifiers.
+- **Persistence**: fetched/analyzed/fused signals are stored in SQLite (`signals` table).
+- **UI**: `Real-World Signals` tab in `frontend-next` with:
+  - `Twitter/X Live`
+  - `News Live`
+  - `Fused Context` with editable impact vectors and `Apply to New Simulation`.
+
+## Running A Sample Simulation
+1. Login from web UI with `APP_ACCESS_CODE`.
+2. Go to `New Simulation`.
+3. Select scenario/archetype mix, edit country+company context.
+4. Optionally apply AI translation and edit generated fields.
+5. Click `Run Simulation`.
+
+## Using The Archetype Manager
+- Open `Archetype Manager`.
+- Create/edit/delete/duplicate archetypes.
+- Import/export archetypes as JSON.
+- Edit `behavioral_prompt_template` per archetype.
+
+## Using The Scenario Manager
+- Open `Scenario Manager`.
+- Create/edit/delete/duplicate scenarios.
+- Import/export scenarios as JSON.
+
+## Using Scenario Translation
+- Enter future scenario text in `New Simulation`.
+- Click `Translate Scenario`.
+- Review/edit structured output before running.
+
+## Using Impact Translation
+- Enter global event text in `New Simulation`.
+- Click `Translate Global Event Impact`.
+- Review/edit structured local impact variables before running.
+
+## Using Tactical Recommendations
+- Generated automatically after simulation.
+- Also available via `POST /strategy-recommend`.
+
+## Using Disruptive Innovation Ideas
+- Generated automatically after simulation under `Innovation Lab`.
+- Also available via `POST /innovation-recommend`.
+
+## Viewing Results
+Results panel includes:
+- Executive metric cards
+- Timeline chart lines (churn, trust deterioration, liquidity stress)
+- Final action distribution
+- Archetype-level breakdown in output payload
+- Tactical recommendations
+- Disruptive recommendations
+- Duplicate/export run actions
+
+## Deploy On RunPod
+### Fresh Pod commands (copy-paste)
+```bash
+sudo apt update
+sudo apt install -y git
+
+git clone https://github.com/666ghj/MiroFish.git
+cd MiroFish
 cp .env.example .env
+# edit .env (set APP_ACCESS_CODE, optional LLM vars)
 
-# 2. 拉取镜像并启动
-docker compose up -d
+./scripts/runpod_setup.sh
 ```
 
-默认会读取根目录下的 `.env`，并映射端口 `3000（前端）/5001（后端）`
+### Start services with tmux
+```bash
+./scripts/start_all.sh
+tmux attach -t mirofish-fintech
+```
 
-> 在 `docker-compose.yml` 中已通过注释提供加速镜像地址，可按需替换
+Default `start_frontend.sh` now prefers `frontend-next` (port `3000`).
 
-## 📬 更多交流
+### Manual start
+```bash
+./scripts/start_backend.sh
+# in another shell
+./scripts/start_frontend.sh
+```
 
-<div align="center">
-<img src="./static/image/QQ群.png" alt="QQ交流群" width="60%"/>
-</div>
+### nohup alternative
+```bash
+nohup ./scripts/start_backend.sh > backend.log 2>&1 &
+nohup ./scripts/start_frontend.sh > frontend.log 2>&1 &
+```
 
-&nbsp;
+RunPod notes:
+- Bind host is `0.0.0.0`.
+- Use Pod public TCP/HTTP mapping for `FRONTEND_PORT` and optionally `BACKEND_PORT`.
+- Keep backend private if possible and expose frontend publicly.
 
-MiroFish团队长期招募全职/实习，如果你对多Agent应用感兴趣，欢迎投递简历至：**mirofish@shanda.com**
+## Security / Data Safety Notes
+- Use only synthetic users and synthetic scenario variables.
+- Do not upload PII or customer-level data.
+- Do not send customer-level sensitive data to external LLM APIs.
+- Access gate is MVP auth for demo/internal usage, not enterprise IAM.
 
-## 📄 致谢
+## Cost Notes
+Approximate per simulation (LLM-enabled):
+- Agent reasoning calls are sampled, not full-agent every step.
+- Typical run (`300 agents`, `12 steps`, `1 MC`) with sampled LLM usage: usually low single-digit cents to low tens of cents depending on model/provider.
+- Translation and recommendation endpoints add small extra cost (typically far less than full simulation reasoning).
+- `mock` mode has zero LLM token cost.
 
-**MiroFish 得到了盛大集团的战略支持和孵化！**
-
-MiroFish 的仿真引擎由 **[OASIS](https://github.com/camel-ai/oasis)** 驱动，我们衷心感谢 CAMEL-AI 团队的开源贡献！
-
-## 📈 项目统计
-
-<a href="https://www.star-history.com/#666ghj/MiroFish&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=666ghj/MiroFish&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=666ghj/MiroFish&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=666ghj/MiroFish&type=date&legend=top-left" />
- </picture>
-</a>
+## Tests
+Run:
+```bash
+make test
+```
+Covers:
+- simulation logic
+- seeded archetype/scenario loading
+- scenario translation parsing
+- impact translation parsing
+- tactical recommendation parsing
+- disruptive recommendation parsing
+- fallback behavior in mock mode
