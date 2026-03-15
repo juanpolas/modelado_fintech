@@ -16,6 +16,7 @@ export type Archetype = {
   income_stability: QualLevel
   macro_anxiety: QualLevel
   behavioral_prompt_template: string
+  origin?: 'default' | 'twitter' | 'custom'
   reaction_patterns?: Record<string, string>
 }
 

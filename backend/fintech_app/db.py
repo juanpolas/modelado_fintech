@@ -170,11 +170,14 @@ class Database:
         return self.get_settings()
 
     def seed_defaults_if_empty(self) -> None:
-        if not self.list_items("archetypes"):
-            for a in DEFAULT_ARCHETYPES:
+        existing_archetypes = {a.get("id") for a in self.list_items("archetypes")}
+        for a in DEFAULT_ARCHETYPES:
+            if a["id"] not in existing_archetypes:
                 self.put_item("archetypes", a["id"], a)
-        if not self.list_items("scenarios"):
-            for s in build_default_scenarios():
+
+        existing_scenarios = {s.get("id") for s in self.list_items("scenarios")}
+        for s in build_default_scenarios():
+            if s["id"] not in existing_scenarios:
                 self.put_item("scenarios", s["id"], s)
 
     def save_signal(self, signal_id: str, source_type: str, source_name: str, payload: dict[str, Any]) -> None:

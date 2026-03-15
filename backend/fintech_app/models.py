@@ -25,6 +25,7 @@ class Archetype:
     income_stability: str
     macro_anxiety: str
     behavioral_prompt_template: str
+    origin: str = "default"
     reaction_patterns: dict[str, str] = field(default_factory=dict)
 
     @classmethod

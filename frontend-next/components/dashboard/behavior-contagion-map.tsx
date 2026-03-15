@@ -6,7 +6,6 @@ import {
   Controls,
   Handle,
   MarkerType,
-  MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -79,8 +78,9 @@ function CircularNode({ data }: NodeProps<ContagionNode>) {
           transition: 'all 420ms ease',
         }}
       />
-      <div className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/60 px-2 py-1 text-[10px] text-white opacity-0 transition group-hover:opacity-100">
-        {data.label}
+      <div className="pointer-events-none absolute -bottom-11 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/15 bg-black/70 px-2 py-1 text-[10px] text-white shadow-lg">
+        <div className="font-medium">{data.label}</div>
+        <div className="text-[9px] text-slate-300">{data.dominantAction}</div>
       </div>
       <Handle type="source" position={Position.Right} style={{ opacity: 0 }} />
     </div>
@@ -278,15 +278,17 @@ export function BehaviorContagionMap({
               nodes={nodes}
               edges={edges}
               nodeTypes={nodeTypes}
+              className="contagion-flow"
               fitView
               fitViewOptions={{ padding: 0.18 }}
               onNodeMouseEnter={(_, node) => setHovered(node.data)}
               onNodeMouseLeave={() => setHovered(null)}
+              onNodeClick={(_, node) => setHovered(node.data)}
               minZoom={0.35}
               maxZoom={1.5}
+              proOptions={{ hideAttribution: true }}
             >
               <Background gap={18} size={1.1} color="#64748b" />
-              <MiniMap zoomable pannable nodeStrokeWidth={3} />
               <Controls />
             </ReactFlow>
           </ReactFlowProvider>
