@@ -39,15 +39,67 @@ import { BehaviorContagionMap } from '@/components/dashboard/behavior-contagion-
 import { RealWorldSignals } from '@/components/dashboard/real-world-signals'
 
 type TabKey = 'new' | 'signals' | 'archetypes' | 'scenarios' | 'runs' | 'settings'
+type Lang = 'es' | 'en'
 
-const NAV_ITEMS: Array<{ key: TabKey; label: string; icon: React.ComponentType<{ className?: string }> }> = [
-  { key: 'new', label: 'New Simulation', icon: FlaskConical },
-  { key: 'signals', label: 'Real-World Signals', icon: Activity },
-  { key: 'archetypes', label: 'Archetype Manager', icon: Users },
-  { key: 'scenarios', label: 'Scenario Manager', icon: Landmark },
-  { key: 'runs', label: 'Past Runs', icon: BarChart3 },
-  { key: 'settings', label: 'Settings', icon: Settings },
+const NAV_ITEMS: Array<{ key: TabKey; icon: React.ComponentType<{ className?: string }> }> = [
+  { key: 'new', icon: FlaskConical },
+  { key: 'signals', icon: Activity },
+  { key: 'archetypes', icon: Users },
+  { key: 'scenarios', icon: Landmark },
+  { key: 'runs', icon: BarChart3 },
+  { key: 'settings', icon: Settings },
 ]
+
+const I18N = {
+  es: {
+    appSubtitle: 'Panel de estrategia de comportamiento fintech',
+    loading: 'Cargando...',
+    secureAccess: 'Acceso interno seguro para simulaciones y demos estratégicas.',
+    enterCode: 'Código de acceso',
+    enter: 'Ingresar',
+    logout: 'Salir',
+    dark: 'Modo oscuro',
+    light: 'Modo claro',
+    nav: {
+      new: 'Nueva Simulación',
+      signals: 'Señales del Mundo Real',
+      archetypes: 'Gestor de Arquetipos',
+      scenarios: 'Gestor de Escenarios',
+      runs: 'Ejecuciones Previas',
+      settings: 'Configuración',
+    },
+    simulationStudio: 'Estudio de Simulación',
+    simulationStudioSub: 'Configura el contexto, ejecuta y explora resultados.',
+    runSimulation: 'Ejecutar Simulación',
+    simulationResults: 'Resultados de Simulación',
+    realWorldSignals: 'Señales del Mundo Real',
+    realWorldSignalsSub: 'Ingesta y fusión de narrativas de X/Twitter y medios argentinos.',
+  },
+  en: {
+    appSubtitle: 'Fintech behavior strategy dashboard',
+    loading: 'Loading...',
+    secureAccess: 'Secure internal access for simulations and strategy demos.',
+    enterCode: 'Access code',
+    enter: 'Enter',
+    logout: 'Logout',
+    dark: 'Dark mode',
+    light: 'Light mode',
+    nav: {
+      new: 'New Simulation',
+      signals: 'Real-World Signals',
+      archetypes: 'Archetype Manager',
+      scenarios: 'Scenario Manager',
+      runs: 'Past Runs',
+      settings: 'Settings',
+    },
+    simulationStudio: 'Simulation Studio',
+    simulationStudioSub: 'Configure context, run, and explore outcomes.',
+    runSimulation: 'Run Simulation',
+    simulationResults: 'Simulation Results',
+    realWorldSignals: 'Real-World Signals',
+    realWorldSignalsSub: 'Ingest and fuse live X/Twitter narratives with Argentine media headlines.',
+  },
+} as const
 
 const COLORS = ['#ef4444', '#3b82f6', '#f59e0b', '#22c55e', '#8b5cf6', '#06b6d4', '#fb7185', '#64748b']
 
@@ -72,6 +124,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabKey>('new')
   const [dark, setDark] = useState(false)
+  const [lang, setLang] = useState<Lang>('es')
   const [error, setError] = useState('')
 
   const [accessCode, setAccessCode] = useState('')
@@ -85,6 +138,7 @@ export default function Page() {
   const [editingArchetype, setEditingArchetype] = useState<Archetype | null>(null)
   const [futureText, setFutureText] = useState('')
   const [impactText, setImpactText] = useState('')
+  const t = I18N[lang]
 
   useEffect(() => {
     const root = document.documentElement
@@ -268,21 +322,17 @@ export default function Page() {
     URL.revokeObjectURL(a.href)
   }
 
-  if (loading) {
-    return <div className="flex min-h-screen items-center justify-center text-sm">Loading...</div>
-  }
+  if (loading) return <div className="flex min-h-screen items-center justify-center text-sm">{t.loading}</div>
 
   if (!authorized) {
     return (
       <div className="dashboard-bg flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md p-6">
           <h1 className="text-3xl font-bold">MiroFish AR Fintech Simulator</h1>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Secure internal access for simulations and strategy demos.</p>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.secureAccess}</p>
           <div className="mt-6 space-y-3">
-            <Input value={accessCode} onChange={(e) => setAccessCode(e.target.value)} placeholder="Access code" />
-            <Button className="w-full" onClick={doLogin}>
-              Enter
-            </Button>
+            <Input value={accessCode} onChange={(e) => setAccessCode(e.target.value)} placeholder={t.enterCode} />
+            <Button className="w-full" onClick={doLogin}>{t.enter}</Button>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
           </div>
         </Card>
@@ -296,7 +346,7 @@ export default function Page() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div>
             <h1 className="text-2xl font-bold">MiroFish AR Fintech Simulator</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Fintech behavior strategy dashboard</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t.appSubtitle}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {NAV_ITEMS.map((item) => {
@@ -305,15 +355,18 @@ export default function Page() {
                 <Button key={item.key} variant={tab === item.key ? 'default' : 'outline'} onClick={() => setTab(item.key)}>
                   <span className="inline-flex items-center gap-2">
                     <Icon className="h-4 w-4" />
-                    {item.label}
+                    {t.nav[item.key]}
                   </span>
                 </Button>
               )
             })}
-            <Button variant="ghost" onClick={() => setDark((v) => !v)}>{dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</Button>
+            <Button variant="outline" onClick={() => setLang((v) => (v === 'es' ? 'en' : 'es'))}>{lang.toUpperCase()}</Button>
+            <Button variant="ghost" onClick={() => setDark((v) => !v)} title={dark ? t.light : t.dark}>
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Button variant="danger" onClick={doLogout}>
               <span className="inline-flex items-center gap-2">
-                <LogOut className="h-4 w-4" /> Logout
+                <LogOut className="h-4 w-4" /> {t.logout}
               </span>
             </Button>
           </div>
@@ -333,13 +386,13 @@ export default function Page() {
           >
             {tab === 'new' ? (
               <section className="space-y-6">
-                <SectionTitle title="Simulation Studio" subtitle="Configure context, run, and explore outcomes." />
+                <SectionTitle title={t.simulationStudio} subtitle={t.simulationStudioSub} />
 
                 <div className="grid gap-4 lg:grid-cols-3">
                   <Card className="space-y-3 lg:col-span-1">
-                    <h3 className="font-semibold">Simulation Setup</h3>
+                    <h3 className="font-semibold">{lang === 'es' ? 'Configuración de simulación' : 'Simulation Setup'}</h3>
                     <div>
-                      <label className="mb-1 block text-xs">Scenario</label>
+                      <label className="mb-1 block text-xs">{lang === 'es' ? 'Escenario' : 'Scenario'}</label>
                       <Select
                         value={sim.scenario_id || ''}
                         onChange={(e) => {
@@ -354,7 +407,7 @@ export default function Page() {
                           }))
                         }}
                       >
-                        <option value="">custom</option>
+                        <option value="">{lang === 'es' ? 'personalizado' : 'custom'}</option>
                         {scenarios.map((s) => (
                           <option key={s.id} value={s.id}>
                             {s.name}
@@ -363,11 +416,11 @@ export default function Page() {
                       </Select>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <Field label="Agents" value={sim.num_agents} onChange={(v) => setSim((p) => ({ ...p, num_agents: Number(v) }))} />
-                      <Field label="Steps" value={sim.num_steps} onChange={(v) => setSim((p) => ({ ...p, num_steps: Number(v) }))} />
+                      <Field label={lang === 'es' ? 'Agentes' : 'Agents'} value={sim.num_agents} onChange={(v) => setSim((p) => ({ ...p, num_agents: Number(v) }))} />
+                      <Field label={lang === 'es' ? 'Pasos' : 'Steps'} value={sim.num_steps} onChange={(v) => setSim((p) => ({ ...p, num_steps: Number(v) }))} />
                       <Field label="Seed" value={sim.seed} onChange={(v) => setSim((p) => ({ ...p, seed: Number(v) }))} />
                       <Field
-                        label="Monte Carlo"
+                        label={lang === 'es' ? 'Monte Carlo' : 'Monte Carlo'}
                         value={sim.monte_carlo_runs}
                         onChange={(v) => setSim((p) => ({ ...p, monte_carlo_runs: Number(v) }))}
                       />
@@ -375,7 +428,7 @@ export default function Page() {
                   </Card>
 
                   <Card className="space-y-3 lg:col-span-2">
-                    <h3 className="font-semibold">Archetype Mix</h3>
+                    <h3 className="font-semibold">{lang === 'es' ? 'Mezcla de Arquetipos' : 'Archetype Mix'}</h3>
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {archetypes.map((a) => (
                         <div key={a.id} className="rounded-xl border border-border p-3">
@@ -396,10 +449,12 @@ export default function Page() {
                       ))}
                     </div>
                     <div className="flex items-center justify-between">
-                      <Badge className={Math.abs(mixTotal - 100) > 0.01 ? 'border-red-500 text-red-600' : ''}>Mix Total: {mixTotal.toFixed(2)}%</Badge>
+                      <Badge className={Math.abs(mixTotal - 100) > 0.01 ? 'border-red-500 text-red-600' : ''}>
+                        {lang === 'es' ? 'Total mezcla' : 'Mix Total'}: {mixTotal.toFixed(2)}%
+                      </Badge>
                       <Button onClick={runSimulation}>
                         <span className="inline-flex items-center gap-2">
-                          <Play className="h-4 w-4" /> Run Simulation
+                          <Play className="h-4 w-4" /> {t.runSimulation}
                         </span>
                       </Button>
                     </div>
@@ -407,29 +462,32 @@ export default function Page() {
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <ContextEditor title="Country Context" data={sim.country_context} onChange={(k, v) => setSim((p) => ({ ...p, country_context: { ...p.country_context, [k]: v } }))} />
+                  <ContextEditor title={lang === 'es' ? 'Contexto País' : 'Country Context'} data={sim.country_context} onChange={(k, v) => setSim((p) => ({ ...p, country_context: { ...p.country_context, [k]: v } }))} />
                   <ContextEditor
-                    title="Company Context"
+                    title={lang === 'es' ? 'Contexto Compañía' : 'Company Context'}
                     data={sim.company_context}
                     onChange={(k, v) => setSim((p) => ({ ...p, company_context: { ...p.company_context, [k]: v } }))}
                   />
                 </div>
 
                 <Card>
-                  <SectionTitle title="AI Context Translators" subtitle="Translate future scenarios and global events into local simulation drivers." />
+                  <SectionTitle
+                    title={lang === 'es' ? 'Traductores de Contexto IA' : 'AI Context Translators'}
+                    subtitle={lang === 'es' ? 'Traduce escenarios futuros y eventos globales a variables locales.' : 'Translate future scenarios and global events into local simulation drivers.'}
+                  />
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-xs">Future Scenario</label>
+                      <label className="text-xs">{lang === 'es' ? 'Escenario Futuro' : 'Future Scenario'}</label>
                       <TextArea value={futureText} onChange={(e) => setFutureText(e.target.value)} placeholder="Cambio de gobierno con incertidumbre" rows={4} />
                       <Button variant="outline" onClick={doTranslateScenario}>
-                        Translate Scenario
+                        {lang === 'es' ? 'Traducir Escenario' : 'Translate Scenario'}
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs">Global Event</label>
+                      <label className="text-xs">{lang === 'es' ? 'Evento Global' : 'Global Event'}</label>
                       <TextArea value={impactText} onChange={(e) => setImpactText(e.target.value)} placeholder="There is a war in the Middle East" rows={4} />
                       <Button variant="outline" onClick={doTranslateImpact}>
-                        Impact Translate
+                        {lang === 'es' ? 'Traducir Impacto' : 'Impact Translate'}
                       </Button>
                     </div>
                   </div>
@@ -437,20 +495,20 @@ export default function Page() {
 
                 {latestRun ? (
                   <section className="space-y-4">
-                    <SectionTitle title="Simulation Results" subtitle={`Run ID: ${latestRun.id}`} />
+                    <SectionTitle title={t.simulationResults} subtitle={`Run ID: ${latestRun.id}`} />
 
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                      <MetricCard icon={Landmark} label="Migration Funds" value={num(currentMetrics?.estimated_migration_of_funds)} />
-                      <MetricCard icon={Users} label="Churn Proxy" value={pct(currentMetrics?.churn_proxy)} />
-                      <MetricCard icon={Shield} label="Liquidity Stress" value={pct(currentMetrics?.liquidity_stress_proxy)} />
-                      <MetricCard icon={BarChart3} label="Promo Abuse Risk" value={pct(currentMetrics?.promo_abuse_risk_proxy)} />
+                      <MetricCard icon={Landmark} label={lang === 'es' ? 'Migración de Fondos' : 'Migration Funds'} value={num(currentMetrics?.estimated_migration_of_funds)} />
+                      <MetricCard icon={Users} label={lang === 'es' ? 'Proxy de Churn' : 'Churn Proxy'} value={pct(currentMetrics?.churn_proxy)} />
+                      <MetricCard icon={Shield} label={lang === 'es' ? 'Estrés de Liquidez' : 'Liquidity Stress'} value={pct(currentMetrics?.liquidity_stress_proxy)} />
+                      <MetricCard icon={BarChart3} label={lang === 'es' ? 'Riesgo Abuso Promo' : 'Promo Abuse Risk'} value={pct(currentMetrics?.promo_abuse_risk_proxy)} />
                     </div>
 
-                    <BehaviorContagionMap archetypes={archetypes} run={latestRun} payload={sim} />
+                    <BehaviorContagionMap archetypes={archetypes} run={latestRun} payload={sim} lang={lang} />
 
                     <div className="grid gap-4 lg:grid-cols-3">
                       <Card className="lg:col-span-2">
-                        <SectionTitle title="Timeline Dynamics" subtitle="Churn, trust deterioration, and liquidity stress." />
+                        <SectionTitle title={lang === 'es' ? 'Dinámica Temporal' : 'Timeline Dynamics'} subtitle={lang === 'es' ? 'Churn, deterioro de confianza y estrés de liquidez.' : 'Churn, trust deterioration, and liquidity stress.'} />
                         <div className="h-72 w-full">
                           <ResponsiveContainer>
                             <LineChart data={timeline}>
@@ -481,7 +539,7 @@ export default function Page() {
                       </Card>
 
                       <Card>
-                        <SectionTitle title="Action Distribution" subtitle="Final behavior mix." />
+                        <SectionTitle title={lang === 'es' ? 'Distribución de Acciones' : 'Action Distribution'} subtitle={lang === 'es' ? 'Mezcla final de comportamientos.' : 'Final behavior mix.'} />
                         <div className="h-72 w-full">
                           <ResponsiveContainer>
                             <PieChart>
@@ -500,13 +558,13 @@ export default function Page() {
 
                     <div className="grid gap-4 lg:grid-cols-2">
                       <Card>
-                        <SectionTitle title="Tactical Recommendations" subtitle="Pragmatic actions for product and risk teams." />
+                        <SectionTitle title={lang === 'es' ? 'Recomendaciones Tácticas' : 'Tactical Recommendations'} subtitle={lang === 'es' ? 'Acciones pragmáticas para producto y riesgo.' : 'Pragmatic actions for product and risk teams.'} />
                         <div className="space-y-2">
                           {(latestRun.tactical_recommendations?.tactical_actions || []).map((x, i) => (
                             <motion.div key={i} whileHover={{ y: -2 }} className="rounded-xl border border-border p-3">
                               <div className="mb-2 flex items-center justify-between">
                                 <h4 className="font-medium">{x.title}</h4>
-                                <Badge>Retention / Risk</Badge>
+                                <Badge>{lang === 'es' ? 'Retención / Riesgo' : 'Retention / Risk'}</Badge>
                               </div>
                               <p className="text-sm text-slate-500 dark:text-slate-400">{x.why}</p>
                             </motion.div>
@@ -515,7 +573,7 @@ export default function Page() {
                       </Card>
 
                       <Card>
-                        <SectionTitle title="Innovation Lab" subtitle="Disruptive and globally-inspired concepts." />
+                        <SectionTitle title={lang === 'es' ? 'Laboratorio de Innovación' : 'Innovation Lab'} subtitle={lang === 'es' ? 'Conceptos disruptivos inspirados globalmente.' : 'Disruptive and globally-inspired concepts.'} />
                         <div className="space-y-2">
                           {(latestRun.disruptive_recommendations?.innovation_lab || []).map((x, i) => (
                             <motion.div key={i} whileHover={{ scale: 1.01 }} className="rounded-xl border border-border p-3">
@@ -524,7 +582,7 @@ export default function Page() {
                                 <Lightbulb className="h-4 w-4 text-amber-500" />
                               </div>
                               <p className="text-sm text-slate-500 dark:text-slate-400">{x.fit}</p>
-                              <p className="mt-2 text-xs">Inspiration: {x.inspiration}</p>
+                              <p className="mt-2 text-xs">{lang === 'es' ? 'Inspiración' : 'Inspiration'}: {x.inspiration}</p>
                             </motion.div>
                           ))}
                         </div>
@@ -537,11 +595,9 @@ export default function Page() {
 
             {tab === 'signals' ? (
               <section className="space-y-4">
-                <SectionTitle
-                  title="Real-World Signals"
-                  subtitle="Ingest and fuse live X/Twitter narratives with Argentine media headlines."
-                />
+                <SectionTitle title={t.realWorldSignals} subtitle={t.realWorldSignalsSub} />
                 <RealWorldSignals
+                  lang={lang}
                   initialCountryContext={sim.country_context}
                   initialCompanyContext={sim.company_context}
                   onError={setError}
@@ -560,7 +616,10 @@ export default function Page() {
             {tab === 'archetypes' ? (
               <section className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <SectionTitle title="Archetype Manager" subtitle="Visual cards + editable behavioral profiles." />
+                  <SectionTitle
+                    title={lang === 'es' ? 'Gestor de Arquetipos' : 'Archetype Manager'}
+                    subtitle={lang === 'es' ? 'Tarjetas visuales y perfiles conductuales editables.' : 'Visual cards + editable behavioral profiles.'}
+                  />
                   <div className="flex gap-2">
                     <Button
                       onClick={() => {
@@ -571,10 +630,10 @@ export default function Page() {
                         setEditingArchetype(base)
                       }}
                     >
-                      New Archetype
+                      {lang === 'es' ? 'Nuevo Arquetipo' : 'New Archetype'}
                     </Button>
                     <Button variant="outline" onClick={() => exportJson('archetypes.json', archetypes)}>
-                      Export
+                      {lang === 'es' ? 'Exportar' : 'Export'}
                     </Button>
                   </div>
                 </div>
@@ -619,10 +678,10 @@ export default function Page() {
                         </div>
                         <div className="flex gap-2">
                           <Button variant="outline" onClick={() => setEditingArchetype(copy(a))}>
-                            Edit
+                            {lang === 'es' ? 'Editar' : 'Edit'}
                           </Button>
                           <Button variant="danger" onClick={() => removeArchetype(a.id)}>
-                            Delete
+                            {lang === 'es' ? 'Eliminar' : 'Delete'}
                           </Button>
                         </div>
                         <div className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-full border-t border-border bg-card/95 p-3 text-xs text-slate-500 opacity-0 transition duration-200 group-hover:translate-y-0 group-hover:opacity-100" />
@@ -636,7 +695,10 @@ export default function Page() {
             {tab === 'scenarios' ? (
               <section className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <SectionTitle title="Scenario Manager" subtitle="Persistent scenario library with editable context baselines." />
+                  <SectionTitle
+                    title={lang === 'es' ? 'Gestor de Escenarios' : 'Scenario Manager'}
+                    subtitle={lang === 'es' ? 'Biblioteca persistente de escenarios con contexto editable.' : 'Persistent scenario library with editable context baselines.'}
+                  />
                   <Button
                     onClick={() => {
                       const id = `scenario_${Math.floor(Math.random() * 9999)}`
@@ -651,7 +713,7 @@ export default function Page() {
                       })
                     }}
                   >
-                    New Scenario
+                    {lang === 'es' ? 'Nuevo Escenario' : 'New Scenario'}
                   </Button>
                 </div>
 
@@ -666,7 +728,7 @@ export default function Page() {
                       />
                       <div className="flex gap-2">
                         <Button variant="outline" onClick={() => saveScenario(s)}>
-                          Save
+                          {lang === 'es' ? 'Guardar' : 'Save'}
                         </Button>
                         <Button
                           variant="outline"
@@ -677,10 +739,10 @@ export default function Page() {
                             saveScenario(dupe)
                           }}
                         >
-                          Duplicate
+                          {lang === 'es' ? 'Duplicar' : 'Duplicate'}
                         </Button>
                         <Button variant="danger" onClick={() => removeScenario(s.id)}>
-                          Delete
+                          {lang === 'es' ? 'Eliminar' : 'Delete'}
                         </Button>
                       </div>
                     </Card>
@@ -691,7 +753,10 @@ export default function Page() {
 
             {tab === 'runs' ? (
               <section className="space-y-4">
-                <SectionTitle title="Past Runs" subtitle="Review, duplicate, and export historical simulations." />
+                <SectionTitle
+                  title={lang === 'es' ? 'Ejecuciones Previas' : 'Past Runs'}
+                  subtitle={lang === 'es' ? 'Revisá, duplicá y exportá simulaciones históricas.' : 'Review, duplicate, and export historical simulations.'}
+                />
                 <div className="grid gap-4">
                   {runs.map((r) => (
                     <Card key={r.id} className="flex flex-wrap items-center justify-between gap-3">
@@ -703,13 +768,13 @@ export default function Page() {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" onClick={() => { setLatestRun(r); setTab('new') }}>
-                          Open
+                          {lang === 'es' ? 'Abrir' : 'Open'}
                         </Button>
                         <Button variant="outline" onClick={() => duplicateRun(r.id)}>
-                          Duplicate
+                          {lang === 'es' ? 'Duplicar' : 'Duplicate'}
                         </Button>
                         <Button variant="outline" onClick={() => exportJson(`run-${r.id}.json`, r)}>
-                          Export
+                          {lang === 'es' ? 'Exportar' : 'Export'}
                         </Button>
                       </div>
                     </Card>
@@ -720,10 +785,13 @@ export default function Page() {
 
             {tab === 'settings' ? (
               <section className="space-y-4">
-                <SectionTitle title="Settings" subtitle="Runtime provider and model preferences." />
+                <SectionTitle
+                  title={lang === 'es' ? 'Configuración' : 'Settings'}
+                  subtitle={lang === 'es' ? 'Proveedor y modelo LLM en tiempo de ejecución.' : 'Runtime provider and model preferences.'}
+                />
                 <Card className="max-w-xl space-y-3">
                   <div>
-                    <label className="mb-1 block text-xs">LLM Provider</label>
+                    <label className="mb-1 block text-xs">{lang === 'es' ? 'Proveedor LLM' : 'LLM Provider'}</label>
                     <Select
                       value={String(settings.llm_provider || 'mock')}
                       onChange={(e) => setSettings((s) => ({ ...s, llm_provider: e.target.value }))}
@@ -741,13 +809,13 @@ export default function Page() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs">LLM Model</label>
+                    <label className="mb-1 block text-xs">{lang === 'es' ? 'Modelo LLM' : 'LLM Model'}</label>
                     <Input
                       value={String(settings.llm_model || '')}
                       onChange={(e) => setSettings((s) => ({ ...s, llm_model: e.target.value }))}
                     />
                   </div>
-                  <Button onClick={saveSettings}>Save Settings</Button>
+                  <Button onClick={saveSettings}>{lang === 'es' ? 'Guardar configuración' : 'Save Settings'}</Button>
                 </Card>
               </section>
             ) : null}

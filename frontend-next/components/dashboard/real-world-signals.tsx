@@ -23,6 +23,7 @@ const TWITTER_PRESETS = [
 ]
 
 type SignalsProps = {
+  lang: 'es' | 'en'
   initialCountryContext: Record<string, QualLevel>
   initialCompanyContext: Record<string, QualLevel>
   onApply: (country: Record<string, QualLevel>, company: Record<string, QualLevel>) => void
@@ -61,6 +62,7 @@ function ImpactBar({ label, value }: { label: string; value: QualLevel }) {
 }
 
 export function RealWorldSignals({
+  lang,
   initialCountryContext,
   initialCompanyContext,
   onApply,
@@ -143,19 +145,19 @@ export function RealWorldSignals({
   return (
     <Card className="space-y-4">
       <SectionTitle
-        title="Real-World Signals"
-        subtitle="Live X/Twitter narratives + Argentine news adapters + fused context modifiers."
+        title={lang === 'es' ? 'Señales del Mundo Real' : 'Real-World Signals'}
+        subtitle={lang === 'es' ? 'Narrativas en vivo de X/Twitter + medios argentinos + contexto fusionado.' : 'Live X/Twitter narratives + Argentine news adapters + fused context modifiers.'}
       />
 
       <div className="flex flex-wrap gap-2">
         <Button variant={tab === 'twitter' ? 'default' : 'outline'} onClick={() => setTab('twitter')}>
-          <Twitter className="h-4 w-4" /> Twitter/X Live
+          <Twitter className="h-4 w-4" /> {lang === 'es' ? 'Twitter/X en Vivo' : 'Twitter/X Live'}
         </Button>
         <Button variant={tab === 'news' ? 'default' : 'outline'} onClick={() => setTab('news')}>
-          <Newspaper className="h-4 w-4" /> News Live
+          <Newspaper className="h-4 w-4" /> {lang === 'es' ? 'Noticias en Vivo' : 'News Live'}
         </Button>
         <Button variant={tab === 'fused' ? 'default' : 'outline'} onClick={() => setTab('fused')}>
-          <Sparkles className="h-4 w-4" /> Fused Context
+          <Sparkles className="h-4 w-4" /> {lang === 'es' ? 'Contexto Fusionado' : 'Fused Context'}
         </Button>
       </div>
 
@@ -165,7 +167,7 @@ export function RealWorldSignals({
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="X query" />
             <Input type="number" min={10} max={100} value={maxResults} onChange={(e) => setMaxResults(Number(e.target.value || 50))} />
             <Button variant="outline" onClick={refreshTwitter} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Fetch + Analyze
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {lang === 'es' ? 'Traer + Analizar' : 'Fetch + Analyze'}
             </Button>
             <Select value={query} onChange={(e) => setQuery(e.target.value)}>
               {TWITTER_PRESETS.map((preset) => (
@@ -179,8 +181,8 @@ export function RealWorldSignals({
           {twitterAnalyzed ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className={severityClass(twitterAnalyzed.severity)}>severity: {twitterAnalyzed.severity}</Badge>
-                <Badge>tweets: {twitterAnalyzed.raw_count}</Badge>
+              <Badge className={severityClass(twitterAnalyzed.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {twitterAnalyzed.severity}</Badge>
+                <Badge>{lang === 'es' ? 'tweets' : 'tweets'}: {twitterAnalyzed.raw_count}</Badge>
                 {twitterFetched?.warning ? <Badge className="border-red-300 text-red-600">{twitterFetched.warning}</Badge> : null}
               </div>
 
@@ -220,16 +222,16 @@ export function RealWorldSignals({
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={refreshNews} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Fetch + Analyze News
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {lang === 'es' ? 'Traer + Analizar Noticias' : 'Fetch + Analyze News'}
             </Button>
             <Button variant="outline" onClick={runFusion} disabled={loading || (!twitterAnalyzed && !newsAnalyzed)}>
-              <Sparkles className="h-4 w-4" /> Build Fused Context
+              <Sparkles className="h-4 w-4" /> {lang === 'es' ? 'Construir Contexto Fusionado' : 'Build Fused Context'}
             </Button>
           </div>
 
           {newsFetched ? (
             <div className="rounded-xl border border-border p-3 text-sm">
-              <div className="mb-2 font-medium">Source Health</div>
+              <div className="mb-2 font-medium">{lang === 'es' ? 'Salud de Fuentes' : 'Source Health'}</div>
               <div className="flex flex-wrap gap-2">
                 {newsFetched.source_status.slice(0, 30).map((s) => (
                   <Badge key={s.source} className={s.count > 0 ? 'border-green-400/40 text-green-600 dark:text-green-300' : 'border-red-400/40 text-red-600 dark:text-red-300'}>
@@ -243,9 +245,9 @@ export function RealWorldSignals({
           {newsAnalyzed ? (
             <>
               <div className="flex flex-wrap gap-2">
-                <Badge className={severityClass(newsAnalyzed.severity)}>severity: {newsAnalyzed.severity}</Badge>
-                <Badge>articles: {newsAnalyzed.raw_count}</Badge>
-                <Badge>recognized sources: {newsAnalyzed.recognized_sources.length}</Badge>
+                <Badge className={severityClass(newsAnalyzed.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {newsAnalyzed.severity}</Badge>
+                <Badge>{lang === 'es' ? 'artículos' : 'articles'}: {newsAnalyzed.raw_count}</Badge>
+                <Badge>{lang === 'es' ? 'fuentes reconocidas' : 'recognized sources'}: {newsAnalyzed.recognized_sources.length}</Badge>
               </div>
 
               <div className="grid gap-2 md:grid-cols-2">
@@ -285,22 +287,22 @@ export function RealWorldSignals({
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={runFusion} disabled={loading || (!twitterAnalyzed && !newsAnalyzed)}>
-              <Activity className="h-4 w-4" /> Refresh Fusion
+              <Activity className="h-4 w-4" /> {lang === 'es' ? 'Actualizar Fusión' : 'Refresh Fusion'}
             </Button>
             <Button variant="outline" onClick={() => onApply(editableCountry, editableCompany)} disabled={!fused}>
-              Apply to New Simulation
+              {lang === 'es' ? 'Aplicar a Nueva Simulación' : 'Apply to New Simulation'}
             </Button>
             <Button variant="outline" onClick={async () => { setLoading(true); try { await api.refreshSignals(); await refreshTwitter(); await refreshNews(); await runFusion(); } catch (e) { onError((e as Error).message) } finally { setLoading(false) } }} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Manual Refresh
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {lang === 'es' ? 'Refresh Manual' : 'Manual Refresh'}
             </Button>
           </div>
 
           {fused ? (
             <>
               <div className="flex flex-wrap gap-2">
-                <Badge className={severityClass(fused.severity)}>severity: {fused.severity}</Badge>
-                <Badge>twitter signals: {fused.inputs.twitter_count}</Badge>
-                <Badge>news signals: {fused.inputs.news_count}</Badge>
+                <Badge className={severityClass(fused.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {fused.severity}</Badge>
+                <Badge>{lang === 'es' ? 'señales twitter' : 'twitter signals'}: {fused.inputs.twitter_count}</Badge>
+                <Badge>{lang === 'es' ? 'señales noticias' : 'news signals'}: {fused.inputs.news_count}</Badge>
                 <Badge>{fused.dedupe_policy}</Badge>
               </div>
 
@@ -315,7 +317,7 @@ export function RealWorldSignals({
 
               <div className="rounded-xl border border-border p-3">
                 <div className="mb-2 flex items-center gap-2 text-sm font-medium">
-                  <AlertTriangle className="h-4 w-4 text-amber-500" /> Affected archetypes
+                  <AlertTriangle className="h-4 w-4 text-amber-500" /> {lang === 'es' ? 'Arquetipos afectados' : 'Affected archetypes'}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {fused.affected_archetypes.map((a) => (
@@ -326,7 +328,7 @@ export function RealWorldSignals({
 
               <div className="grid gap-4 lg:grid-cols-2">
                 <Card className="space-y-2">
-                  <SectionTitle title="Country Impact" />
+                  <SectionTitle title={lang === 'es' ? 'Impacto País' : 'Country Impact'} />
                   {Object.entries(editableCountry).map(([k, v]) => (
                     <div key={k} className="grid gap-2 sm:grid-cols-[1fr_140px] sm:items-center">
                       <ImpactBar label={k} value={v} />
@@ -342,7 +344,7 @@ export function RealWorldSignals({
                 </Card>
 
                 <Card className="space-y-2">
-                  <SectionTitle title="Company Impact" />
+                  <SectionTitle title={lang === 'es' ? 'Impacto Compañía' : 'Company Impact'} />
                   {Object.entries(editableCompany).map(([k, v]) => (
                     <div key={k} className="grid gap-2 sm:grid-cols-[1fr_140px] sm:items-center">
                       <ImpactBar label={k} value={v} />
@@ -359,7 +361,11 @@ export function RealWorldSignals({
               </div>
             </>
           ) : (
-            <p className="text-sm text-slate-500 dark:text-slate-400">Run Twitter and News analysis first, then build fused context.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {lang === 'es'
+                ? 'Primero corré el análisis de Twitter y Noticias, luego construí el contexto fusionado.'
+                : 'Run Twitter and News analysis first, then build fused context.'}
+            </p>
           )}
         </div>
       ) : null}

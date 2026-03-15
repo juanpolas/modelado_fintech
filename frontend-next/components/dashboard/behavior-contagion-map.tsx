@@ -93,10 +93,12 @@ export function BehaviorContagionMap({
   archetypes,
   run,
   payload,
+  lang,
 }: {
   archetypes: Archetype[]
   run: RunRecord
   payload: SimulationPayload
+  lang: 'es' | 'en'
 }) {
   const timeline = run.outputs.single_run.timeline || []
   const stepCount = Math.max(1, timeline.length)
@@ -248,21 +250,25 @@ export function BehaviorContagionMap({
   return (
     <Card className="overflow-hidden">
       <SectionTitle
-        title="Behavior Contagion Map"
-        subtitle="How financial behaviors spread between archetypes during simulation steps."
+        title={lang === 'es' ? 'Mapa de Contagio Conductual' : 'Behavior Contagion Map'}
+        subtitle={
+          lang === 'es'
+            ? 'Cómo se propagan los comportamientos financieros entre arquetipos en cada paso.'
+            : 'How financial behaviors spread between archetypes during simulation steps.'
+        }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Button variant="outline" onClick={() => setPlaying((v) => !v)}>
-          {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />} {playing ? 'Pause' : 'Play'}
+          {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />} {playing ? (lang === 'es' ? 'Pausar' : 'Pause') : lang === 'es' ? 'Play' : 'Play'}
         </Button>
         <Button variant="outline" onClick={() => setStep((s) => Math.min(stepCount - 1, s + 1))}>
-          <SkipForward className="h-4 w-4" /> Step
+          <SkipForward className="h-4 w-4" /> {lang === 'es' ? 'Paso' : 'Step'}
         </Button>
         <Button variant="outline" onClick={() => { setStep(0); setPlaying(false) }}>
-          <RotateCcw className="h-4 w-4" /> Reset
+          <RotateCcw className="h-4 w-4" /> {lang === 'es' ? 'Reiniciar' : 'Reset'}
         </Button>
-        <Badge>Step {Math.min(step + 1, stepCount)} / {stepCount}</Badge>
+        <Badge>{lang === 'es' ? 'Paso' : 'Step'} {Math.min(step + 1, stepCount)} / {stepCount}</Badge>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_330px]">
@@ -294,11 +300,11 @@ export function BehaviorContagionMap({
               <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">{hovered.description}</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-lg bg-muted p-2">
-                  <div className="mb-1 text-[10px] text-slate-500">Dominant action</div>
+                  <div className="mb-1 text-[10px] text-slate-500">{lang === 'es' ? 'Acción dominante' : 'Dominant action'}</div>
                   <div className="font-medium">{hovered.dominantAction}</div>
                 </div>
                 <div className="rounded-lg bg-muted p-2">
-                  <div className="mb-1 text-[10px] text-slate-500">Funds moved</div>
+                  <div className="mb-1 text-[10px] text-slate-500">{lang === 'es' ? 'Fondos movidos' : 'Funds moved'}</div>
                   <div className="font-medium">${Math.round(hovered.fundsMoved).toLocaleString()}</div>
                 </div>
               </div>
@@ -307,12 +313,15 @@ export function BehaviorContagionMap({
         </div>
 
         <Card className="h-fit">
-          <SectionTitle title="Contagion Analysis" subtitle="Live interpretation for the current simulation step." />
+          <SectionTitle
+            title={lang === 'es' ? 'Análisis de Contagio' : 'Contagion Analysis'}
+            subtitle={lang === 'es' ? 'Interpretación en vivo del paso actual.' : 'Live interpretation for the current simulation step.'}
+          />
           <div className="space-y-3 text-sm">
-            <Insight icon={Waves} label="Initial trigger" value={analysis.trigger} />
-            <Insight icon={AlertTriangle} label="Most affected" value={analysis.affected.join(', ') || '-'} />
-            <Insight icon={Gauge} label="Dominant actions" value={analysis.dominantActions.join(', ') || '-'} />
-            <Insight icon={TrendingUp} label="Resisting panic" value={analysis.resistant.join(', ') || '-'} />
+            <Insight icon={Waves} label={lang === 'es' ? 'Disparador inicial' : 'Initial trigger'} value={analysis.trigger} />
+            <Insight icon={AlertTriangle} label={lang === 'es' ? 'Más afectados' : 'Most affected'} value={analysis.affected.join(', ') || '-'} />
+            <Insight icon={Gauge} label={lang === 'es' ? 'Acciones dominantes' : 'Dominant actions'} value={analysis.dominantActions.join(', ') || '-'} />
+            <Insight icon={TrendingUp} label={lang === 'es' ? 'Segmentos resilientes' : 'Resisting panic'} value={analysis.resistant.join(', ') || '-'} />
           </div>
         </Card>
       </div>
