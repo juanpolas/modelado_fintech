@@ -90,7 +90,7 @@ def build_run_report_pdf(run: dict[str, Any], lang: str = "es", ai_summary: str 
     innovation = run.get("disruptive_recommendations", {}).get("innovation_lab", []) or []
 
     lines: list[str] = []
-    lines.append(_txt(lang, "MiroFish AR - Informe Ejecutivo de Simulación", "MiroFish AR - Executive Simulation Report"))
+    lines.append(_txt(lang, "AR Fintech Simulator - Informe Ejecutivo de Simulación", "AR Fintech Simulator - Executive Simulation Report"))
     lines.append(f"Run ID: {run.get('id', '-')}")
     lines.append(f"{_txt(lang, 'Fecha', 'Date')}: {run.get('created_at', '-')}")
     lines.append("")

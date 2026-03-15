@@ -1096,7 +1096,7 @@ export default function Page() {
     return (
       <div className="dashboard-bg flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md p-6">
-          <h1 className="text-2xl font-bold sm:text-3xl">MiroFish AR Fintech Simulator</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">AR Fintech Simulator</h1>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.secureAccess}</p>
           <div className="mt-6 space-y-3">
             <Input value={accessCode} onChange={(e) => setAccessCode(e.target.value)} placeholder={t.enterCode} />
@@ -1120,7 +1120,7 @@ export default function Page() {
             <div className={`flex items-start ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
               {!sidebarCollapsed ? (
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">MiroFish AR</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">AR Fintech</p>
                   <h1 className="mt-2 text-xl font-semibold">{lang === 'es' ? 'Inteligencia Fintech' : 'Fintech Intelligence'}</h1>
                   <p className="mt-1 text-xs text-slate-400">{t.appSubtitle}</p>
                 </div>

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'MiroFish AR Fintech Simulator',
+  title: 'AR Fintech Simulator',
   description: 'Argentina fintech behavior simulation dashboard',
 }
 
