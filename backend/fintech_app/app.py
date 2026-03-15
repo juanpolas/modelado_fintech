@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, jsonify, request, session
+from flask import Flask, Response, jsonify, request, session
 from flask_cors import CORS
 
 from .db import Database
@@ -18,6 +18,7 @@ from .signal_fusion import SignalFusionEngine
 from .signal_jobs import SignalBackgroundJobs
 from .simulation import SimulationEngine
 from .twitter_client import TwitterSignalClient
+from .reporting import build_run_report_pdf
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
@@ -171,7 +172,13 @@ def create_app() -> Flask:
             outputs=outputs,
             tactical_recommendations=tactical,
             disruptive_recommendations=disruptive,
-            generated_insights={"llm_provider": llm.cfg.provider},
+            generated_insights={
+                "llm_provider": llm.cfg.provider,
+                "recommendation_source": {
+                    "tactical": tactical.get("source", "unknown"),
+                    "innovation": disruptive.get("source", "unknown"),
+                },
+            },
         ).to_dict()
         db.create_run(run_id, run)
         return jsonify(run)
@@ -194,6 +201,34 @@ def create_app() -> Flask:
         if not dupe:
             return jsonify({"detail": "not found"}), 404
         return jsonify(dupe)
+
+    @app.get("/runs/<run_id>/report-pdf")
+    def run_report_pdf(run_id: str):
+        run = db.get_run(run_id)
+        if not run:
+            return jsonify({"detail": "not found"}), 404
+        lang = request.args.get("lang") or str(run.get("config", {}).get("report_language", "es"))
+        lang = "es" if lang not in {"es", "en"} else lang
+
+        llm = active_llm()
+        summary_payload = {
+            "simulation_results": run.get("outputs", {}),
+            "country_context": run.get("config", {}).get("country_context", {}),
+            "company_context": run.get("config", {}).get("company_context", {}),
+            "scenario_metadata": {
+                "id": run.get("config", {}).get("scenario_id"),
+                "name": run.get("config", {}).get("scenario_name"),
+            },
+            "tactical_recommendations": run.get("tactical_recommendations", {}),
+            "disruptive_recommendations": run.get("disruptive_recommendations", {}),
+        }
+        ai_summary = llm.executive_summary(summary_payload, lang=lang)
+        pdf_bytes = build_run_report_pdf(run, lang=lang, ai_summary=ai_summary)
+        return Response(
+            pdf_bytes,
+            mimetype="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=run_{run_id}_report_{lang}.pdf"},
+        )
 
     @app.post("/translate-scenario")
     def translate_scenario():
@@ -237,6 +272,27 @@ def create_app() -> Flask:
         llm = active_llm()
         payload = request.get_json(silent=True) or {}
         return jsonify(llm.innovation_recommend(payload))
+
+    @app.post("/contexts/review")
+    def review_context():
+        llm = active_llm()
+        payload = request.get_json(silent=True) or {}
+        reviewed = llm.review_context_profile(payload)
+        return jsonify(reviewed)
+
+    @app.post("/scenarios/review")
+    def review_scenario():
+        llm = active_llm()
+        payload = request.get_json(silent=True) or {}
+        reviewed = llm.review_scenario(payload)
+        return jsonify(reviewed)
+
+    @app.post("/scenarios/generate")
+    def generate_scenario():
+        llm = active_llm()
+        payload = request.get_json(silent=True) or {}
+        generated = llm.generate_hypothetical_scenario(payload)
+        return jsonify(generated)
 
     @app.get("/settings")
     def get_settings():

@@ -140,10 +140,14 @@ No external API calls are needed; deterministic fallback remains active.
 - `GET /runs`
 - `GET /runs/{id}`
 - `POST /runs/{id}/duplicate`
+- `GET /runs/{id}/report-pdf?lang=es|en`
 - `POST /translate-scenario`
 - `POST /impact-translate`
 - `POST /strategy-recommend`
 - `POST /innovation-recommend`
+- `POST /contexts/review`
+- `POST /scenarios/review`
+- `POST /scenarios/generate`
 - `POST /signals/twitter/fetch`
 - `POST /signals/twitter/analyze`
 - `POST /signals/news/fetch`
@@ -238,6 +242,7 @@ curl -X POST http://localhost:8000/signals/fuse \
 ## Viewing Results
 Results panel includes:
 - Executive metric cards
+- Downloadable executive PDF report (Spanish/English) generated from run inputs + outputs + recommendation analysis.
 - Timeline chart lines (churn, trust deterioration, liquidity stress)
 - Final action distribution
 - Archetype-level breakdown in output payload

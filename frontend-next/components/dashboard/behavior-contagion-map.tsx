@@ -106,6 +106,15 @@ export function BehaviorContagionMap({
   const [playing, setPlaying] = useState(true)
   const [hovered, setHovered] = useState<ContagionNodeData | null>(null)
 
+  const stateLabel = (state: ContagionState) => {
+    if (lang !== 'es') return state
+    if (state === 'stable') return 'estable'
+    if (state === 'alert') return 'alerta'
+    if (state === 'panic') return 'pánico'
+    if (state === 'crypto') return 'migración cripto'
+    return 'oportunidad'
+  }
+
   useEffect(() => {
     if (!playing) return
     const id = window.setInterval(() => {
@@ -297,7 +306,7 @@ export function BehaviorContagionMap({
             <div className="absolute left-4 top-4 w-72 rounded-xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="font-semibold">{hovered.label}</h4>
-                <Badge className={STATE_STYLES[hovered.state].chip}>{hovered.state}</Badge>
+                <Badge className={STATE_STYLES[hovered.state].chip}>{stateLabel(hovered.state)}</Badge>
               </div>
               <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">{hovered.description}</p>
               <div className="grid grid-cols-2 gap-2 text-xs">

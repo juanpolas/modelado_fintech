@@ -54,7 +54,16 @@ function severityClass(level?: string) {
   return 'bg-slate-500/15 text-slate-600 dark:text-slate-300 border-slate-400/40'
 }
 
-function ImpactBar({ label, value }: { label: string; value: QualLevel }) {
+function qualText(level: QualLevel, lang: 'es' | 'en') {
+  if (lang !== 'es') return level
+  if (level === 'very_low') return 'muy_bajo'
+  if (level === 'low') return 'bajo'
+  if (level === 'medium') return 'medio'
+  if (level === 'high') return 'alto'
+  return 'muy_alto'
+}
+
+function ImpactBar({ label, value, lang }: { label: string; value: QualLevel; lang: 'es' | 'en' }) {
   const widthMap: Record<QualLevel, string> = {
     very_low: 'w-[20%]',
     low: 'w-[40%]',
@@ -62,14 +71,21 @@ function ImpactBar({ label, value }: { label: string; value: QualLevel }) {
     high: 'w-[80%]',
     very_high: 'w-full',
   }
+  const colorMap: Record<QualLevel, string> = {
+    very_low: 'bg-emerald-500',
+    low: 'bg-blue-500',
+    medium: 'bg-amber-500',
+    high: 'bg-orange-500',
+    very_high: 'bg-red-500',
+  }
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
         <span className="text-slate-500 dark:text-slate-400">{label}</span>
-        <span className="font-medium">{value}</span>
+        <span className="font-medium">{qualText(value, lang)}</span>
       </div>
       <div className="h-2 rounded-full bg-muted">
-        <div className={`h-2 rounded-full bg-primary ${widthMap[value]}`} />
+        <div className={`h-2 rounded-full ${colorMap[value]} ${widthMap[value]}`} />
       </div>
     </div>
   )
@@ -508,7 +524,7 @@ export function RealWorldSignals({
           </Card>
 
           <div className="grid gap-3 md:grid-cols-[1fr_140px_auto_auto]">
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="X query" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={lang === 'es' ? 'Query de X' : 'X query'} />
             <Input type="number" min={10} max={100} value={maxResults} onChange={(e) => setMaxResults(Number(e.target.value || 50))} />
             <Button variant="outline" onClick={refreshTwitter} disabled={loading}>
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {lang === 'es' ? 'Traer + Analizar' : 'Fetch + Analyze'}
@@ -516,7 +532,7 @@ export function RealWorldSignals({
             <Select value={query} onChange={(e) => setQuery(e.target.value)}>
               {TWITTER_PRESETS.map((preset) => (
                 <option key={preset} value={preset}>
-                  Preset query
+                  {lang === 'es' ? 'Query preset' : 'Preset query'}
                 </option>
               ))}
             </Select>
@@ -525,7 +541,7 @@ export function RealWorldSignals({
           {twitterAnalyzed ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className={severityClass(twitterAnalyzed.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {twitterAnalyzed.severity}</Badge>
+                <Badge className={severityClass(twitterAnalyzed.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {qualText(twitterAnalyzed.severity, lang)}</Badge>
                 <Badge>{lang === 'es' ? 'tweets relevantes' : 'relevant tweets'}: {twitterAnalyzed.raw_count}</Badge>
                 {typeof twitterAnalyzed.noise_count === 'number' ? (
                   <Badge>{lang === 'es' ? 'ruido filtrado' : 'filtered noise'}: {twitterAnalyzed.noise_count}</Badge>
@@ -593,7 +609,7 @@ export function RealWorldSignals({
           {newsAnalyzed ? (
             <>
               <div className="flex flex-wrap gap-2">
-                <Badge className={severityClass(newsAnalyzed.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {newsAnalyzed.severity}</Badge>
+                <Badge className={severityClass(newsAnalyzed.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {qualText(newsAnalyzed.severity, lang)}</Badge>
                 <Badge>{lang === 'es' ? 'artículos' : 'articles'}: {newsAnalyzed.raw_count}</Badge>
                 <Badge>{lang === 'es' ? 'fuentes reconocidas' : 'recognized sources'}: {newsAnalyzed.recognized_sources.length}</Badge>
               </div>
@@ -611,7 +627,7 @@ export function RealWorldSignals({
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <Badge>{a.source}</Badge>
                       {a.event_type ? <Badge>{a.event_type}</Badge> : null}
-                      {a.severity ? <Badge className={severityClass(a.severity)}>sev: {a.severity}</Badge> : null}
+                      {a.severity ? <Badge className={severityClass(a.severity)}>sev: {qualText(a.severity, lang)}</Badge> : null}
                     </div>
                     <p className="mb-2 line-clamp-2 text-sm font-medium">{a.title}</p>
                     {a.transmission_channels?.length ? (
@@ -641,14 +657,14 @@ export function RealWorldSignals({
               {lang === 'es' ? 'Aplicar a Nueva Simulación' : 'Apply to New Simulation'}
             </Button>
             <Button variant="outline" onClick={async () => { setLoading(true); try { await api.refreshSignals(); await refreshTwitter(); await refreshNews(); await runFusion(); } catch (e) { onError((e as Error).message) } finally { setLoading(false) } }} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {lang === 'es' ? 'Refresh Manual' : 'Manual Refresh'}
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> {lang === 'es' ? 'Actualización manual' : 'Manual Refresh'}
             </Button>
           </div>
 
           {fused ? (
             <>
               <div className="flex flex-wrap gap-2">
-                <Badge className={severityClass(fused.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {fused.severity}</Badge>
+                <Badge className={severityClass(fused.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {qualText(fused.severity, lang)}</Badge>
                 <Badge>{lang === 'es' ? 'señales twitter' : 'twitter signals'}: {fused.inputs.twitter_count}</Badge>
                 <Badge>{lang === 'es' ? 'señales noticias' : 'news signals'}: {fused.inputs.news_count}</Badge>
                 <Badge>{fused.dedupe_policy}</Badge>
@@ -686,12 +702,12 @@ export function RealWorldSignals({
                           onChange={(e) => setSelectedCountryKeys((prev) => ({ ...prev, [k]: e.target.checked }))}
                           title={lang === 'es' ? 'Incluir esta señal en la simulación' : 'Include this signal in simulation'}
                         />
-                        <ImpactBar label={k} value={v} />
+                        <ImpactBar label={k} value={v} lang={lang} />
                       </div>
                       <Select value={v} onChange={(e) => setEditableCountry((prev) => ({ ...prev, [k]: e.target.value as QualLevel }))}>
                         {QUAL_LEVELS.map((q) => (
                           <option key={q} value={q}>
-                            {q}
+                            {qualText(q, lang)}
                           </option>
                         ))}
                       </Select>
@@ -710,12 +726,12 @@ export function RealWorldSignals({
                           onChange={(e) => setSelectedCompanyKeys((prev) => ({ ...prev, [k]: e.target.checked }))}
                           title={lang === 'es' ? 'Incluir esta señal en la simulación' : 'Include this signal in simulation'}
                         />
-                        <ImpactBar label={k} value={v} />
+                        <ImpactBar label={k} value={v} lang={lang} />
                       </div>
                       <Select value={v} onChange={(e) => setEditableCompany((prev) => ({ ...prev, [k]: e.target.value as QualLevel }))}>
                         {QUAL_LEVELS.map((q) => (
                           <option key={q} value={q}>
-                            {q}
+                            {qualText(q, lang)}
                           </option>
                         ))}
                       </Select>

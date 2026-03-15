@@ -37,6 +37,7 @@ export type SimulationPayload = {
   num_steps: number
   seed: number
   monte_carlo_runs: number
+  report_language?: 'es' | 'en'
   archetype_mix: Record<string, number>
   country_context: Record<string, QualLevel>
   company_context: Record<string, QualLevel>
@@ -69,11 +70,13 @@ export type RunRecord = {
     monte_carlo?: unknown
   }
   tactical_recommendations: {
-    tactical_actions?: Array<{ title: string; why?: string }>
+    tactical_actions?: Array<{ title: string; why?: string; category?: string }>
     risk_mitigation?: string[]
+    source?: 'llm' | 'heuristic'
   }
   disruptive_recommendations: {
-    innovation_lab?: Array<{ idea: string; inspiration?: string; fit?: string }>
+    innovation_lab?: Array<{ idea: string; inspiration?: string; fit?: string; disruptiveness?: string }>
+    source?: 'llm' | 'heuristic'
   }
 }
 

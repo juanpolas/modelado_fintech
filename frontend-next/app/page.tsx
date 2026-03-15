@@ -232,6 +232,7 @@ export default function Page() {
   const [dark, setDark] = useState(true)
   const [lang, setLang] = useState<Lang>('es')
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
   const [accessCode, setAccessCode] = useState('')
   const [archetypes, setArchetypes] = useState<Archetype[]>([])
@@ -250,11 +251,19 @@ export default function Page() {
   const [futureText, setFutureText] = useState('')
   const [impactText, setImpactText] = useState('')
   const [panicOpen, setPanicOpen] = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [llmContextPrompt, setLlmContextPrompt] = useState('')
   const [llmContextTitle, setLlmContextTitle] = useState('')
   const [llmContextDescription, setLlmContextDescription] = useState('')
   const [llmGeneratedCountryContext, setLlmGeneratedCountryContext] = useState<Record<string, QualLevel> | null>(null)
   const [llmContextLoading, setLlmContextLoading] = useState(false)
+  const [llmReviewContextLoading, setLlmReviewContextLoading] = useState(false)
+  const [llmReviewScenarioLoading, setLlmReviewScenarioLoading] = useState(false)
+  const [llmScenarioPrompt, setLlmScenarioPrompt] = useState('')
+  const [llmScenarioLoading, setLlmScenarioLoading] = useState(false)
+  const [hypoAffectsCountry, setHypoAffectsCountry] = useState(true)
+  const [hypoAffectsCompany, setHypoAffectsCompany] = useState(true)
+  const [baselineContextTitle, setBaselineContextTitle] = useState<string>('')
   const t = I18N[lang]
 
   useEffect(() => {
@@ -296,6 +305,7 @@ export default function Page() {
     const mergedProfiles = storedProfiles.length ? storedProfiles : [baseProfile]
     setContextProfiles(mergedProfiles)
     if (!selectedContextId && mergedProfiles[0]) setSelectedContextId(mergedProfiles[0].id)
+    if (!baselineContextTitle && mergedProfiles[0]) setBaselineContextTitle(mergedProfiles[0].title)
     if (!latestRun && r[0]) setLatestRun(r[0])
     if (!selectedArchetypeId && a[0]) setSelectedArchetypeId(a[0].id)
     if (!selectedScenarioId && s[0]) setSelectedScenarioId(s[0].id)
@@ -329,6 +339,11 @@ export default function Page() {
     if (!selectedContextId || !contextProfiles.some((c) => c.id === selectedContextId)) {
       setSelectedContextId(contextProfiles[0].id)
     }
+  }, [contextProfiles, selectedContextId])
+
+  useEffect(() => {
+    const ctx = contextProfiles.find((c) => c.id === selectedContextId) || contextProfiles[0]
+    if (ctx?.title) setBaselineContextTitle(ctx.title)
   }, [contextProfiles, selectedContextId])
 
   const mixTotal = useMemo(
@@ -493,12 +508,214 @@ export default function Page() {
     saveContextProfiles(updated)
   }
 
+  async function updateSelectedContextWithLLM() {
+    if (!selectedContext) return
+    setLlmReviewContextLoading(true)
+    setError('')
+    setInfo('')
+    try {
+      const reviewed = await api.reviewContextWithLlm({
+        context_profile: {
+          id: selectedContext.id,
+          title: selectedContext.title,
+          description: selectedContext.description,
+          country_context: selectedContext.country_context,
+        },
+      })
+      setContextProfiles((prev) =>
+        prev.map((x) =>
+          x.id === selectedContext.id
+            ? {
+                ...x,
+                title: reviewed.title || x.title,
+                description: reviewed.description || x.description,
+                country_context: {
+                  ...x.country_context,
+                  ...(reviewed.country_context as Record<string, QualLevel>),
+                },
+              }
+            : x
+        )
+      )
+      setInfo(
+        lang === 'es'
+          ? 'Contexto actualizado con revisión LLM. Revisá los cambios y guardá.'
+          : 'Context updated with LLM review. Check changes and save.'
+      )
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLlmReviewContextLoading(false)
+    }
+  }
+
+  async function updateSelectedScenarioWithLLM() {
+    if (!selectedScenario) return
+    setLlmReviewScenarioLoading(true)
+    setError('')
+    setInfo('')
+    try {
+      const reviewed = await api.reviewScenarioWithLlm({
+        scenario: {
+          id: selectedScenario.id,
+          name: selectedScenario.name,
+          description: selectedScenario.description,
+          default_country_context: selectedScenario.default_country_context,
+          default_company_context: selectedScenario.default_company_context,
+          notes: selectedScenario.notes,
+        },
+      })
+      setScenarios((prev) =>
+        prev.map((x) =>
+          x.id === selectedScenario.id
+            ? {
+                ...x,
+                name: reviewed.name || x.name,
+                description: reviewed.description || x.description,
+                default_country_context: {
+                  ...x.default_country_context,
+                  ...(reviewed.default_country_context as Record<string, QualLevel>),
+                },
+                default_company_context: {
+                  ...x.default_company_context,
+                  ...(reviewed.default_company_context as Record<string, QualLevel>),
+                },
+                notes: reviewed.notes || x.notes,
+              }
+            : x
+        )
+      )
+      setInfo(
+        lang === 'es'
+          ? 'Escenario actualizado con revisión LLM. Revisá y guardá.'
+          : 'Scenario updated with LLM review. Review and save.'
+      )
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLlmReviewScenarioLoading(false)
+    }
+  }
+
+  async function validateHypotheticalWithLLM() {
+    if (!selectedScenario) return
+    setLlmReviewScenarioLoading(true)
+    setError('')
+    setInfo('')
+    try {
+      const reviewed = await api.reviewScenarioWithLlm({
+        scenario: {
+          id: selectedScenario.id,
+          name: selectedScenario.name,
+          description: selectedScenario.description,
+          default_country_context: selectedScenario.default_country_context,
+          default_company_context: selectedScenario.default_company_context,
+          notes: selectedScenario.notes,
+        },
+      })
+      setScenarios((prev) =>
+        prev.map((x) =>
+          x.id === selectedScenario.id
+            ? {
+                ...x,
+                name: reviewed.name || x.name,
+                description: reviewed.description || x.description,
+                default_country_context: {
+                  ...x.default_country_context,
+                  ...(reviewed.default_country_context as Record<string, QualLevel>),
+                },
+                default_company_context: {
+                  ...x.default_company_context,
+                  ...(reviewed.default_company_context as Record<string, QualLevel>),
+                },
+                notes: reviewed.notes || x.notes,
+              }
+            : x
+        )
+      )
+      setInfo(
+        lang === 'es'
+          ? 'Escenario hipotético validado por LLM. Podés aplicarlo a la simulación.'
+          : 'Hypothetical scenario validated by LLM. You can now apply it to the simulation.'
+      )
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLlmReviewScenarioLoading(false)
+    }
+  }
+
+  async function generateScenarioFromLLM() {
+    const text = llmScenarioPrompt.trim()
+    if (!text) {
+      setError(lang === 'es' ? 'Escribí una hipótesis para generar el escenario.' : 'Write a hypothesis to generate the scenario.')
+      return
+    }
+    setLlmScenarioLoading(true)
+    setError('')
+    setInfo('')
+    try {
+      const generated = await api.generateScenarioWithLlm({ text, lang })
+      const id = `scenario_ai_${Math.floor(Math.random() * 999999)}`
+      const newScenario: Scenario = {
+        id,
+        name: generated.name || (lang === 'es' ? 'Escenario hipotético IA' : 'AI hypothetical scenario'),
+        description: generated.description || '',
+        default_country_context: generated.default_country_context as Record<string, QualLevel>,
+        default_company_context: generated.default_company_context as Record<string, QualLevel>,
+        notes: generated.notes || '',
+      }
+      await saveScenario(newScenario)
+      setSelectedScenarioId(id)
+      setInfo(
+        lang === 'es'
+          ? 'Escenario hipotético generado por LLM. Revisá, ajustá y luego aplicalo en Nueva Simulación.'
+          : 'Hypothetical scenario generated by LLM. Review, adjust, and apply it in New Simulation.'
+      )
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setLlmScenarioLoading(false)
+    }
+  }
+
+  function applyHypotheticalScenarioToSimulation() {
+    if (!selectedScenario) return
+    setSim((prev) => ({
+      ...prev,
+      scenario_id: selectedScenario.id,
+      scenario_name: selectedScenario.name,
+      country_context: hypoAffectsCountry
+        ? { ...prev.country_context, ...selectedScenario.default_country_context }
+        : prev.country_context,
+      company_context: hypoAffectsCompany
+        ? { ...prev.company_context, ...selectedScenario.default_company_context }
+        : prev.company_context,
+    }))
+    setInfo(
+      lang === 'es'
+        ? `Escenario hipotético aplicado: ${localizeScenarioNameById(selectedScenario.id, selectedScenario.name)}.`
+        : `Hypothetical scenario applied: ${localizeScenarioNameById(selectedScenario.id, selectedScenario.name)}.`
+    )
+  }
+
   function levelBadgeClass(level?: QualLevel) {
     if (level === 'very_high') return 'border-red-500/40 bg-red-500/15 text-red-300'
     if (level === 'high') return 'border-orange-500/40 bg-orange-500/15 text-orange-300'
     if (level === 'medium') return 'border-amber-500/40 bg-amber-500/15 text-amber-200'
     if (level === 'low') return 'border-blue-500/40 bg-blue-500/15 text-blue-300'
     return 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+  }
+
+  function qualLabel(level: QualLevel) {
+    if (lang === 'es') {
+      if (level === 'very_low') return 'muy_bajo'
+      if (level === 'low') return 'bajo'
+      if (level === 'medium') return 'medio'
+      if (level === 'high') return 'alto'
+      return 'muy_alto'
+    }
+    return level
   }
 
   async function doLogin() {
@@ -531,13 +748,31 @@ export default function Page() {
     }
 
     try {
-      const run = await api.simulate(sim)
+      const payload = { ...sim, report_language: lang as 'es' | 'en' }
+      const run = await api.simulate(payload)
       setLatestRun(run)
       const rr = await api.runs()
       setRuns(rr)
       setSimStep(6)
     } catch (e) {
       setError((e as Error).message)
+    }
+  }
+
+  async function downloadReportPdf(runId: string) {
+    try {
+      setDownloadingPdf(true)
+      const blob = await api.downloadRunReportPdf(runId, lang)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `run_${runId}_report_${lang}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setDownloadingPdf(false)
     }
   }
 
@@ -661,7 +896,7 @@ export default function Page() {
         <aside className="glass-card sticky top-4 hidden h-[calc(100vh-2rem)] w-[270px] flex-col p-4 lg:flex">
           <div className="mb-6">
             <p className="text-xs uppercase tracking-[0.22em] text-slate-400">MiroFish AR</p>
-            <h1 className="mt-2 text-xl font-semibold">Fintech Intelligence</h1>
+            <h1 className="mt-2 text-xl font-semibold">{lang === 'es' ? 'Inteligencia Fintech' : 'Fintech Intelligence'}</h1>
             <p className="mt-1 text-xs text-slate-400">{t.appSubtitle}</p>
           </div>
           <div className="space-y-2">
@@ -738,6 +973,7 @@ export default function Page() {
 
           <main className="space-y-6">
         {error ? <Card className="border-red-400 text-red-700 dark:text-red-300">{error}</Card> : null}
+        {info ? <Card className="border-emerald-400 text-emerald-700 dark:text-emerald-300">{info}</Card> : null}
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -817,39 +1053,131 @@ export default function Page() {
                       title={lang === 'es' ? 'Objetivo del paso' : 'Step goal'}
                       description={
                         lang === 'es'
-                          ? 'Elegir un contexto guardado y revisar cómo cambia presión macro, confianza/pánico y presión conductual.'
-                          : 'Choose a saved context and review how macro pressure, trust/panic and behavior pressure change.'
+                          ? 'Separar base actual vs hipótesis: primero seleccionás el contexto fijo, luego aplicás el escenario hipotético que querés testear.'
+                          : 'Separate current baseline vs hypothesis: first select fixed context, then apply the hypothetical scenario to test.'
                       }
                     />
-                    <Card>
-                      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                        <div>
-                          <label className="mb-1 block text-xs text-slate-400">{lang === 'es' ? 'Contexto seleccionado' : 'Selected context'}</label>
-                          <Select
-                            value={selectedContext?.id || ''}
-                            onChange={(e) => {
-                              const id = e.target.value
-                              setSelectedContextId(id)
-                              const ctx = contextProfiles.find((c) => c.id === id)
-                              if (!ctx) return
-                              setSim((prev) => ({ ...prev, country_context: copy(ctx.country_context) }))
-                            }}
-                          >
-                            {contextProfiles.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.title}
-                              </option>
-                            ))}
-                          </Select>
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <Card className="space-y-3 border-emerald-500/30 bg-emerald-500/5">
+                        <SectionTitle
+                          title={lang === 'es' ? 'Base actual (fijo editable)' : 'Current baseline (editable fixed)'}
+                          subtitle={
+                            lang === 'es'
+                              ? 'Representa condiciones actuales del país. Queda fijo hasta que lo cambies.'
+                              : 'Represents current country conditions. Stays fixed until you change it.'
+                          }
+                        />
+                        <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                          <div>
+                            <label className="mb-1 block text-xs text-slate-400">{lang === 'es' ? 'Contexto base seleccionado' : 'Selected baseline context'}</label>
+                            <Select
+                              value={selectedContext?.id || ''}
+                              onChange={(e) => {
+                                const id = e.target.value
+                                setSelectedContextId(id)
+                                const ctx = contextProfiles.find((c) => c.id === id)
+                                if (!ctx) return
+                                setBaselineContextTitle(ctx.title)
+                                setSim((prev) => ({ ...prev, country_context: copy(ctx.country_context) }))
+                              }}
+                            >
+                              {contextProfiles.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.title}
+                                </option>
+                              ))}
+                            </Select>
+                          </div>
+                          <Button variant="outline" onClick={() => setTab('contexts')}>
+                            {lang === 'es' ? 'Editar base' : 'Edit baseline'}
+                          </Button>
                         </div>
-                        <Button
-                          variant="outline"
-                          onClick={() => setTab('contexts')}
-                        >
-                          {lang === 'es' ? 'Editar contextos' : 'Edit contexts'}
-                        </Button>
+                        <p className="text-xs text-slate-400">
+                          {lang === 'es'
+                            ? 'Este bloque define el estado actual del país y no debería variar entre tests, salvo que decidas actualizarlo.'
+                            : 'This block defines the current country state and should remain stable across tests unless you intentionally update it.'}
+                        </p>
+                      </Card>
+
+                      <Card className="space-y-3 border-indigo-500/30 bg-indigo-500/5">
+                        <SectionTitle
+                          title={lang === 'es' ? 'Escenario hipotético (a testear)' : 'Hypothetical scenario (to test)'}
+                          subtitle={
+                            lang === 'es'
+                              ? 'Evento que querés simular sobre la base actual. Puede impactar país, empresa o ambos.'
+                              : 'Event you want to simulate over baseline. It can affect country, company, or both.'
+                          }
+                        />
+                        <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                          <div>
+                            <label className="mb-1 block text-xs text-slate-400">{lang === 'es' ? 'Escenario hipotético' : 'Hypothetical scenario'}</label>
+                            <Select value={selectedScenario?.id || ''} onChange={(e) => setSelectedScenarioId(e.target.value)}>
+                              {scenarios.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {localizeScenarioNameById(s.id, s.name)}
+                                </option>
+                              ))}
+                            </Select>
+                          </div>
+                          <Button variant="outline" onClick={() => setTab('scenarios')}>
+                            {lang === 'es' ? 'Editar escenarios' : 'Edit scenarios'}
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-3 text-sm">
+                          <label className="inline-flex items-center gap-2">
+                            <input type="checkbox" checked={hypoAffectsCountry} onChange={(e) => setHypoAffectsCountry(e.target.checked)} />
+                            <span>{lang === 'es' ? 'Impacta contexto país' : 'Affects country context'}</span>
+                          </label>
+                          <label className="inline-flex items-center gap-2">
+                            <input type="checkbox" checked={hypoAffectsCompany} onChange={(e) => setHypoAffectsCompany(e.target.checked)} />
+                            <span>{lang === 'es' ? 'Impacta contexto empresa' : 'Affects company context'}</span>
+                          </label>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={validateHypotheticalWithLLM} disabled={llmReviewScenarioLoading}>
+                            {llmReviewScenarioLoading
+                              ? (lang === 'es' ? 'Validando con LLM...' : 'Validating with LLM...')
+                              : (lang === 'es' ? 'Actualizar con LLM' : 'Update with LLM')}
+                          </Button>
+                          <Button onClick={applyHypotheticalScenarioToSimulation}>
+                            {lang === 'es' ? 'Aplicar a simulación' : 'Apply to simulation'}
+                          </Button>
+                        </div>
+                        {selectedScenario ? (
+                          <p className="text-xs text-slate-400">
+                            {localizeScenarioDescriptionById(selectedScenario.id, selectedScenario.description)}
+                          </p>
+                        ) : null}
+                      </Card>
+                    </div>
+
+                    <Card>
+                      <div className="grid gap-2 md:grid-cols-3">
+                        <div className="rounded-xl border border-border p-3">
+                          <p className="text-xs text-slate-400">{lang === 'es' ? 'Base actual' : 'Current baseline'}</p>
+                          <p className="mt-1 text-sm font-medium">{baselineContextTitle || '-'}</p>
+                        </div>
+                        <div className="rounded-xl border border-border p-3">
+                          <p className="text-xs text-slate-400">{lang === 'es' ? 'Hipótesis activa' : 'Active hypothesis'}</p>
+                          <p className="mt-1 text-sm font-medium">
+                            {sim.scenario_id ? localizeScenarioNameById(sim.scenario_id, sim.scenario_name) : (lang === 'es' ? 'Sin aplicar' : 'Not applied')}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-border p-3">
+                          <p className="text-xs text-slate-400">{lang === 'es' ? 'Alcance del impacto' : 'Impact scope'}</p>
+                          <p className="mt-1 text-sm font-medium">
+                            {hypoAffectsCountry && hypoAffectsCompany
+                              ? (lang === 'es' ? 'País + Empresa' : 'Country + Company')
+                              : hypoAffectsCountry
+                                ? (lang === 'es' ? 'Sólo País' : 'Country only')
+                                : hypoAffectsCompany
+                                  ? (lang === 'es' ? 'Sólo Empresa' : 'Company only')
+                                  : (lang === 'es' ? 'Sin impacto' : 'No impact')}
+                          </p>
+                        </div>
                       </div>
                     </Card>
+
                     <div className="grid gap-4 lg:grid-cols-3">
                     <ContextClusterCard
                       title={lang === 'es' ? 'Presión Macro' : 'Macro Pressure'}
@@ -885,17 +1213,20 @@ export default function Page() {
                     />
                   <div className="grid gap-4 lg:grid-cols-2">
                     <ContextEditor
+                      lang={lang}
                       title={lang === 'es' ? 'Retención y Yield' : 'Retention & Yield'}
                       data={pickContext(sim.company_context, ['wallet_yield_current', 'wallet_yield_new', 'competitor_yield', 'cashback_percent', 'cashback_cap'])}
                       onChange={(k, v) => setSim((p) => ({ ...p, company_context: { ...p.company_context, [k]: v } }))}
                     />
                     <ContextEditor
+                      lang={lang}
                       title={lang === 'es' ? 'Fricción, Soporte y Liquidez' : 'Friction, Support & Liquidity'}
                       data={pickContext(sim.company_context, ['onboarding_friction', 'KYC_friction', 'app_stability', 'transfer_limits', 'withdrawal_delay_risk', 'support_quality', 'trust_baseline'])}
                       onChange={(k, v) => setSim((p) => ({ ...p, company_context: { ...p.company_context, [k]: v } }))}
                     />
                     <div className="lg:col-span-2">
                       <ContextEditor
+                        lang={lang}
                         title={lang === 'es' ? 'Estrategia de Crédito' : 'Credit Strategy'}
                         data={pickContext(sim.company_context, ['credit_offer_aggressiveness', 'loan_rate_level'])}
                         onChange={(k, v) => setSim((p) => ({ ...p, company_context: { ...p.company_context, [k]: v } }))}
@@ -924,10 +1255,18 @@ export default function Page() {
                           </div>
                           <p className="text-sm text-slate-500 dark:text-slate-400">{a.description}</p>
                           <div className="flex flex-wrap gap-1">
-                            <Badge className={levelBadgeClass(a.trust_level)}>trust {a.trust_level}</Badge>
-                            <Badge className={levelBadgeClass(a.liquidity_preference)}>liq {a.liquidity_preference}</Badge>
-                            <Badge className={levelBadgeClass(a.crypto_affinity)}>crypto {a.crypto_affinity}</Badge>
-                            <Badge className={levelBadgeClass(a.rumor_sensitivity)}>rumor {a.rumor_sensitivity}</Badge>
+                            <Badge className={levelBadgeClass(a.trust_level)}>
+                              {lang === 'es' ? 'confianza' : 'trust'} {qualLabel(a.trust_level)}
+                            </Badge>
+                            <Badge className={levelBadgeClass(a.liquidity_preference)}>
+                              {lang === 'es' ? 'liq' : 'liq'} {qualLabel(a.liquidity_preference)}
+                            </Badge>
+                            <Badge className={levelBadgeClass(a.crypto_affinity)}>
+                              crypto {qualLabel(a.crypto_affinity)}
+                            </Badge>
+                            <Badge className={levelBadgeClass(a.rumor_sensitivity)}>
+                              {lang === 'es' ? 'rumor' : 'rumor'} {qualLabel(a.rumor_sensitivity)}
+                            </Badge>
                           </div>
                           <Input
                             type="number"
@@ -1005,13 +1344,13 @@ export default function Page() {
                             : 'more agents improve statistical stability but increase cost/time.'}
                         </p>
                         <p>
-                          <span className="font-semibold">Seed:</span>{' '}
+                          <span className="font-semibold">{lang === 'es' ? 'Semilla:' : 'Seed:'}</span>{' '}
                           {lang === 'es'
                             ? 'fija aleatoriedad para reproducir escenarios equivalentes.'
                             : 'fixes randomness to reproduce equivalent scenarios.'}
                         </p>
                         <p>
-                          <span className="font-semibold">Monte Carlo:</span>{' '}
+                          <span className="font-semibold">{lang === 'es' ? 'Monte Carlo:' : 'Monte Carlo:'}</span>{' '}
                           {lang === 'es'
                             ? 'repite la simulación N veces para obtener promedio y rango.'
                             : 'repeats simulation N times to get average and range.'}
@@ -1038,25 +1377,30 @@ export default function Page() {
                         onChange={(v) => setSim((p) => ({ ...p, num_steps: Number(v) }))}
                       />
                       <Field
-                        label="Seed"
+                        label={lang === 'es' ? 'Semilla' : 'Seed'}
                         hint={lang === 'es' ? 'Controla reproducibilidad del escenario.' : 'Controls scenario reproducibility.'}
                         value={sim.seed}
                         onChange={(v) => setSim((p) => ({ ...p, seed: Number(v) }))}
                       />
                       <Field
-                        label="Monte Carlo"
+                        label={lang === 'es' ? 'Monte Carlo' : 'Monte Carlo'}
                         hint={lang === 'es' ? 'Cantidad de corridas para estimar rangos.' : 'Number of runs to estimate ranges.'}
                         value={sim.monte_carlo_runs}
                         onChange={(v) => setSim((p) => ({ ...p, monte_carlo_runs: Number(v) }))}
                       />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Badge>
-                        {lang === 'es' ? 'Escenario' : 'Scenario'}:{' '}
-                        {sim.scenario_id
-                          ? localizeScenarioNameById(sim.scenario_id, sim.scenario_name)
-                          : localizeScenarioNameLoose(sim.scenario_name)}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge>
+                          {lang === 'es' ? 'Base actual' : 'Current baseline'}: {baselineContextTitle || '-'}
+                        </Badge>
+                        <Badge>
+                          {lang === 'es' ? 'Hipótesis aplicada' : 'Applied hypothesis'}:{' '}
+                          {sim.scenario_id
+                            ? localizeScenarioNameById(sim.scenario_id, sim.scenario_name)
+                            : (lang === 'es' ? 'Ninguna' : 'None')}
+                        </Badge>
+                      </div>
                       <Button onClick={runSimulation}>
                         <span className="inline-flex items-center gap-2">
                           <Play className="h-4 w-4" /> {t.runSimulation}
@@ -1070,7 +1414,14 @@ export default function Page() {
                   <section className="space-y-4">
                     {simStep === 6 ? (
                       <>
-                        <SectionTitle title={t.simulationResults} subtitle={`Run ID: ${latestRun.id}`} />
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <SectionTitle title={t.simulationResults} subtitle={`${lang === 'es' ? 'ID corrida' : 'Run ID'}: ${latestRun.id}`} />
+                          <Button variant="outline" onClick={() => downloadReportPdf(latestRun.id)} disabled={downloadingPdf}>
+                            {downloadingPdf
+                              ? (lang === 'es' ? 'Generando PDF...' : 'Generating PDF...')
+                              : (lang === 'es' ? 'Descargar Informe PDF' : 'Download PDF Report')}
+                          </Button>
+                        </div>
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                           <PanicMetricCard
                             lang={lang}
@@ -1148,21 +1499,35 @@ export default function Page() {
                     {simStep === 8 ? (
                       <div className="grid gap-4 lg:grid-cols-2">
                         <Card>
-                          <SectionTitle title={lang === 'es' ? 'Acciones Tácticas' : 'Tactical Actions'} subtitle={lang === 'es' ? 'Mitigación de riesgo, retención y liquidez.' : 'Risk mitigation, retention and liquidity actions.'} />
+                          <SectionTitle
+                            title={lang === 'es' ? 'Acciones Tácticas' : 'Tactical Actions'}
+                            subtitle={lang === 'es' ? 'Mitigación de riesgo, retención y liquidez.' : 'Risk mitigation, retention and liquidity actions.'}
+                          />
+                          <p className="mb-2 text-xs text-slate-400">
+                            {lang === 'es' ? 'Origen' : 'Source'}: {latestRun.tactical_recommendations?.source || 'n/a'}
+                          </p>
                           <div className="space-y-2">
                             {(latestRun.tactical_recommendations?.tactical_actions || []).map((x, i) => (
                               <motion.div key={i} whileHover={{ y: -2 }} className="rounded-xl border border-border p-3">
                                 <div className="mb-2 flex items-center justify-between">
                                   <h4 className="font-medium">{x.title}</h4>
-                                  <Badge>{lang === 'es' ? 'Táctico' : 'Tactical'}</Badge>
+                                  <Badge>{x.category || (lang === 'es' ? 'Táctico' : 'Tactical')}</Badge>
                                 </div>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">{x.why}</p>
                               </motion.div>
                             ))}
+                            {(latestRun.tactical_recommendations?.tactical_actions || []).length === 0 ? (
+                              <p className="text-sm text-slate-400">
+                                {lang === 'es' ? 'Sin datos de recomendaciones tácticas.' : 'No tactical recommendation data.'}
+                              </p>
+                            ) : null}
                           </div>
                         </Card>
                         <Card>
-                          <SectionTitle title={lang === 'es' ? 'Innovation Lab' : 'Innovation Lab'} subtitle={lang === 'es' ? 'Ideas disruptivas para nuevos productos.' : 'Disruptive ideas for new products.'} />
+                          <SectionTitle title={lang === 'es' ? 'Laboratorio de Innovación' : 'Innovation Lab'} subtitle={lang === 'es' ? 'Ideas disruptivas para nuevos productos.' : 'Disruptive ideas for new products.'} />
+                          <p className="mb-2 text-xs text-slate-400">
+                            {lang === 'es' ? 'Origen' : 'Source'}: {latestRun.disruptive_recommendations?.source || 'n/a'}
+                          </p>
                           <div className="space-y-2">
                             {(latestRun.disruptive_recommendations?.innovation_lab || []).map((x, i) => (
                               <motion.div key={i} whileHover={{ scale: 1.01 }} className="rounded-xl border border-border p-3">
@@ -1172,8 +1537,14 @@ export default function Page() {
                                 </div>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">{x.fit}</p>
                                 <p className="mt-2 text-xs">{lang === 'es' ? 'Inspiración' : 'Inspiration'}: {x.inspiration}</p>
+                                {x.disruptiveness ? <p className="mt-1 text-xs">{lang === 'es' ? 'Nivel' : 'Level'}: {x.disruptiveness}</p> : null}
                               </motion.div>
                             ))}
+                            {(latestRun.disruptive_recommendations?.innovation_lab || []).length === 0 ? (
+                              <p className="text-sm text-slate-400">
+                                {lang === 'es' ? 'Sin datos de laboratorio de innovación.' : 'No innovation lab data.'}
+                              </p>
+                            ) : null}
                           </div>
                         </Card>
                       </div>
@@ -1420,6 +1791,37 @@ export default function Page() {
                   </Button>
                 </div>
 
+                <Card className="space-y-3 border-primary/30 bg-primary/10">
+                  <SectionTitle
+                    title={lang === 'es' ? 'Generador de Escenario Hipotético con LLM' : 'LLM Hypothetical Scenario Generator'}
+                    subtitle={
+                      lang === 'es'
+                        ? 'Escribí una hipótesis de negocio o macro y el LLM crea nombre, descripción y contexto país/empresa.'
+                        : 'Write a business or macro hypothesis and the LLM creates name, description, and country/company context.'
+                    }
+                  />
+                  <TextArea
+                    rows={3}
+                    value={llmScenarioPrompt}
+                    onChange={(e) => setLlmScenarioPrompt(e.target.value)}
+                    placeholder={
+                      lang === 'es'
+                        ? 'Ej: Lanzar producto de ahorro en USD sintético con retiro inmediato'
+                        : 'E.g. Launch instant-withdraw synthetic USD savings product'
+                    }
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={generateScenarioFromLLM} disabled={llmScenarioLoading}>
+                      {llmScenarioLoading
+                        ? (lang === 'es' ? 'Generando escenario...' : 'Generating scenario...')
+                        : (lang === 'es' ? 'Generar escenario con LLM' : 'Generate scenario with LLM')}
+                    </Button>
+                    <Button variant="outline" onClick={() => setLlmScenarioPrompt('')}>
+                      {lang === 'es' ? 'Limpiar' : 'Clear'}
+                    </Button>
+                  </div>
+                </Card>
+
                 <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
                   <Card className="space-y-3">
                     {!selectedScenario ? (
@@ -1457,6 +1859,7 @@ export default function Page() {
                         />
                         <div className="grid gap-3 md:grid-cols-2">
                           <ContextEditor
+                            lang={lang}
                             title={lang === 'es' ? 'Contexto País (resumen)' : 'Country Context (summary)'}
                             data={pickContext(selectedScenario.default_country_context, [
                               'inflation_expectation',
@@ -1479,6 +1882,7 @@ export default function Page() {
                             }
                           />
                           <ContextEditor
+                            lang={lang}
                             title={lang === 'es' ? 'Contexto Compañía (resumen)' : 'Company Context (summary)'}
                             data={pickContext(selectedScenario.default_company_context, [
                               'wallet_yield_current',
@@ -1503,6 +1907,11 @@ export default function Page() {
                           />
                         </div>
                         <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={updateSelectedScenarioWithLLM} disabled={llmReviewScenarioLoading}>
+                            {llmReviewScenarioLoading
+                              ? (lang === 'es' ? 'Actualizando con LLM...' : 'Updating with LLM...')
+                              : (lang === 'es' ? 'Actualizar con LLM' : 'Update with LLM')}
+                          </Button>
                           <Button variant="outline" onClick={() => saveScenario(selectedScenario)}>
                             {lang === 'es' ? 'Guardar' : 'Save'}
                           </Button>
@@ -1569,6 +1978,14 @@ export default function Page() {
                               </Badge>
                             </div>
                             <p className="line-clamp-2 text-xs text-slate-400">{localizeScenarioDescriptionById(s.id, s.description)}</p>
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              <Badge className={levelBadgeClass(s.default_country_context.social_panic_level)}>
+                                {lang === 'es' ? 'pánico' : 'panic'} {qualLabel(s.default_country_context.social_panic_level)}
+                              </Badge>
+                              <Badge className={levelBadgeClass(s.default_company_context.withdrawal_delay_risk)}>
+                                {lang === 'es' ? 'retiro' : 'withdraw'} {qualLabel(s.default_company_context.withdrawal_delay_risk)}
+                              </Badge>
+                            </div>
                           </button>
                         )
                       })}
@@ -1682,6 +2099,7 @@ export default function Page() {
                           }
                         />
                         <ContextEditor
+                          lang={lang}
                           title={lang === 'es' ? 'Editar Contexto Argentina (Avanzado)' : 'Edit Argentina Context (Advanced)'}
                           data={selectedContext.country_context}
                           onChange={(k, v) =>
@@ -1695,6 +2113,11 @@ export default function Page() {
                           }
                         />
                         <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={updateSelectedContextWithLLM} disabled={llmReviewContextLoading}>
+                            {llmReviewContextLoading
+                              ? (lang === 'es' ? 'Actualizando con LLM...' : 'Updating with LLM...')
+                              : (lang === 'es' ? 'Actualizar con LLM' : 'Update with LLM')}
+                          </Button>
                           <Button variant="outline" onClick={() => saveContextProfiles(contextProfiles)}>
                             {lang === 'es' ? 'Guardar Contextos' : 'Save Contexts'}
                           </Button>
@@ -1749,6 +2172,14 @@ export default function Page() {
                         >
                           <p className="font-medium">{c.title}</p>
                           <p className="line-clamp-2 text-xs text-slate-400">{c.description}</p>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            <Badge className={levelBadgeClass(c.country_context.social_panic_level)}>
+                              {lang === 'es' ? 'pánico' : 'panic'} {qualLabel(c.country_context.social_panic_level)}
+                            </Badge>
+                            <Badge className={levelBadgeClass(c.country_context.inflation_expectation)}>
+                              {lang === 'es' ? 'inflación' : 'inflation'} {qualLabel(c.country_context.inflation_expectation)}
+                            </Badge>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -2043,25 +2474,47 @@ function Field({
 }
 
 function ContextEditor({
+  lang,
   title,
   data,
   onChange,
 }: {
+  lang: 'es' | 'en'
   title: string
   data: Record<string, QualLevel>
   onChange: (key: string, value: QualLevel) => void
 }) {
+  const qualText = (q: QualLevel) => {
+    if (lang === 'es') {
+      if (q === 'very_low') return 'muy_bajo'
+      if (q === 'low') return 'bajo'
+      if (q === 'medium') return 'medio'
+      if (q === 'high') return 'alto'
+      return 'muy_alto'
+    }
+    return q
+  }
+  const qualClass: Record<QualLevel, string> = {
+    very_low: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
+    low: 'border-blue-500/40 bg-blue-500/15 text-blue-300',
+    medium: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+    high: 'border-orange-500/40 bg-orange-500/15 text-orange-300',
+    very_high: 'border-red-500/40 bg-red-500/15 text-red-300',
+  }
   return (
     <Card>
       <SectionTitle title={title} />
       <div className="grid gap-2 sm:grid-cols-2">
         {Object.keys(data).map((key) => (
           <div key={key}>
-            <label className="mb-1 block text-xs">{key}</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="block text-xs">{key}</label>
+              <Badge className={qualClass[data[key] || 'medium']}>{qualText(data[key] || 'medium')}</Badge>
+            </div>
             <Select value={data[key]} onChange={(e) => onChange(key, e.target.value as QualLevel)}>
               {QUAL_LEVELS.map((q) => (
                 <option key={q} value={q}>
-                  {q}
+                  {qualText(q)}
                 </option>
               ))}
             </Select>
@@ -2091,6 +2544,16 @@ function ContextClusterCard({
   data: Record<string, QualLevel>
   lang: 'es' | 'en'
 }) {
+  const qualText = (q: QualLevel) => {
+    if (lang === 'es') {
+      if (q === 'very_low') return 'muy_bajo'
+      if (q === 'low') return 'bajo'
+      if (q === 'medium') return 'medio'
+      if (q === 'high') return 'alto'
+      return 'muy_alto'
+    }
+    return q
+  }
   const colorByQual: Record<QualLevel, string> = {
     very_low: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
     low: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
@@ -2106,7 +2569,7 @@ function ContextClusterCard({
           <div key={key} className="rounded-xl border border-border p-3">
             <div className="text-xs text-slate-500">{key}</div>
             <div className="mt-1 flex items-center justify-between">
-              <span className="text-sm font-medium">{data[key]}</span>
+              <span className="text-sm font-medium">{qualText(data[key] || 'medium')}</span>
               <Badge className={colorByQual[data[key] || 'medium']}>{lang === 'es' ? 'impacto' : 'impact'}</Badge>
             </div>
           </div>

@@ -55,6 +55,22 @@ export const api = {
   runs: () => req<RunRecord[]>('/runs'),
   runById: (id: string) => req<RunRecord>(`/runs/${id}`),
   duplicateRun: (id: string) => req<RunRecord>(`/runs/${id}/duplicate`, { method: 'POST' }),
+  downloadRunReportPdf: async (id: string, lang: 'es' | 'en' = 'es') => {
+    const res = await fetch(`${API_BASE}/runs/${id}/report-pdf?lang=${lang}`, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    })
+    if (!res.ok) {
+      let msg = `Request failed (${res.status})`
+      try {
+        const body = await res.json()
+        msg = body.detail || JSON.stringify(body)
+      } catch {}
+      throw new Error(msg)
+    }
+    return await res.blob()
+  },
 
   simulate: (payload: SimulationPayload) => req<RunRecord>('/simulate', { method: 'POST', body: JSON.stringify(payload) }),
   translateScenario: (text: string) => req<{ country_context: Record<string, string>; company_context: Record<string, string> }>(
@@ -96,4 +112,46 @@ export const api = {
   recentSignals: (sourceType?: string, limit = 50) =>
     req<SignalRecord[]>(`/signals/recent?${new URLSearchParams({ ...(sourceType ? { source_type: sourceType } : {}), limit: String(limit) }).toString()}`),
   refreshSignals: () => req<{ ok: boolean; fused: FusedSignalsResponse }>('/signals/refresh', { method: 'POST' }),
+
+  reviewContextWithLlm: (payload: {
+    context_profile: {
+      id?: string
+      title?: string
+      description?: string
+      country_context?: Record<string, string>
+    }
+  }) => req<{
+    title: string
+    description: string
+    country_context: Record<string, string>
+    reasoning?: string[]
+    needs_update?: boolean
+  }>('/contexts/review', { method: 'POST', body: JSON.stringify(payload) }),
+
+  reviewScenarioWithLlm: (payload: {
+    scenario: {
+      id?: string
+      name?: string
+      description?: string
+      default_country_context?: Record<string, string>
+      default_company_context?: Record<string, string>
+      notes?: string
+    }
+  }) => req<{
+    name: string
+    description: string
+    default_country_context: Record<string, string>
+    default_company_context: Record<string, string>
+    notes?: string
+    needs_update?: boolean
+  }>('/scenarios/review', { method: 'POST', body: JSON.stringify(payload) }),
+
+  generateScenarioWithLlm: (payload: { text: string; lang?: 'es' | 'en' }) =>
+    req<{
+      name: string
+      description: string
+      default_country_context: Record<string, string>
+      default_company_context: Record<string, string>
+      notes?: string
+    }>('/scenarios/generate', { method: 'POST', body: JSON.stringify(payload) }),
 }
