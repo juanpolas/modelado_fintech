@@ -133,6 +133,7 @@ export default function Page() {
   const [runs, setRuns] = useState<RunRecord[]>([])
   const [latestRun, setLatestRun] = useState<RunRecord | null>(null)
   const [sim, setSim] = useState<SimulationPayload>(emptyPayload())
+  const [simStep, setSimStep] = useState(1)
   const [settings, setSettings] = useState<Record<string, unknown>>({ llm_provider: 'mock' })
 
   const [editingArchetype, setEditingArchetype] = useState<Archetype | null>(null)
@@ -182,6 +183,39 @@ export default function Page() {
     () => Object.values(sim.archetype_mix || {}).reduce((acc, n) => acc + Number(n || 0), 0),
     [sim.archetype_mix]
   )
+  const archetypeMixChart = useMemo(
+    () =>
+      archetypes.map((a) => ({
+        name: a.name,
+        value: Number(sim.archetype_mix[a.id] || 0),
+      })),
+    [archetypes, sim.archetype_mix]
+  )
+  const wizardSteps = useMemo(
+    () =>
+      lang === 'es'
+        ? [
+            'Señales',
+            'Contexto AR',
+            'Estrategia de Compañía',
+            'Mix de Arquetipos',
+            'Revisión y Run',
+            'Resultados',
+            'Contagio',
+            'Recomendaciones',
+          ]
+        : [
+            'Signals',
+            'Argentina Context',
+            'Company Strategy',
+            'Archetype Mix',
+            'Review & Run',
+            'Results',
+            'Contagion',
+            'Recommendations',
+          ],
+    [lang]
+  )
 
   const currentMetrics = latestRun?.outputs?.single_run
   const timeline = currentMetrics?.timeline || []
@@ -221,6 +255,7 @@ export default function Page() {
       setLatestRun(run)
       const rr = await api.runs()
       setRuns(rr)
+      setSimStep(6)
     } catch (e) {
       setError((e as Error).message)
     }
@@ -386,53 +421,124 @@ export default function Page() {
           >
             {tab === 'new' ? (
               <section className="space-y-6">
-                <SectionTitle title={t.simulationStudio} subtitle={t.simulationStudioSub} />
+                <SectionTitle
+                  title={lang === 'es' ? 'Flujo Guiado de Simulación' : 'Guided Simulation Journey'}
+                  subtitle={
+                    lang === 'es'
+                      ? 'Seguí una secuencia clara: señales, contexto, estrategia, arquetipos, revisión y resultados.'
+                      : 'Follow a clear sequence: signals, context, strategy, archetypes, review, and results.'
+                  }
+                />
 
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <Card className="space-y-3 lg:col-span-1">
-                    <h3 className="font-semibold">{lang === 'es' ? 'Configuración de simulación' : 'Simulation Setup'}</h3>
-                    <div>
-                      <label className="mb-1 block text-xs">{lang === 'es' ? 'Escenario' : 'Scenario'}</label>
-                      <Select
-                        value={sim.scenario_id || ''}
-                        onChange={(e) => {
-                          const id = e.target.value || null
-                          const picked = scenarios.find((s) => s.id === id)
-                          setSim((prev) => ({
-                            ...prev,
-                            scenario_id: id,
-                            scenario_name: picked?.name || 'custom',
-                            country_context: picked ? copy(picked.default_country_context) : prev.country_context,
-                            company_context: picked ? copy(picked.default_company_context) : prev.company_context,
-                          }))
-                        }}
-                      >
-                        <option value="">{lang === 'es' ? 'personalizado' : 'custom'}</option>
-                        {scenarios.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Field label={lang === 'es' ? 'Agentes' : 'Agents'} value={sim.num_agents} onChange={(v) => setSim((p) => ({ ...p, num_agents: Number(v) }))} />
-                      <Field label={lang === 'es' ? 'Pasos' : 'Steps'} value={sim.num_steps} onChange={(v) => setSim((p) => ({ ...p, num_steps: Number(v) }))} />
-                      <Field label="Seed" value={sim.seed} onChange={(v) => setSim((p) => ({ ...p, seed: Number(v) }))} />
-                      <Field
-                        label={lang === 'es' ? 'Monte Carlo' : 'Monte Carlo'}
-                        value={sim.monte_carlo_runs}
-                        onChange={(v) => setSim((p) => ({ ...p, monte_carlo_runs: Number(v) }))}
+                <Card className="space-y-4">
+                  <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-8">
+                    {wizardSteps.map((label, idx) => {
+                      const n = idx + 1
+                      const active = simStep === n
+                      const done = simStep > n
+                      return (
+                        <div key={label} className={`rounded-xl border p-2 text-center text-xs ${active ? 'border-primary bg-primary/10' : 'border-border'} ${done ? 'opacity-90' : ''}`}>
+                          <div className={`mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full ${active || done ? 'bg-primary text-white' : 'bg-muted'}`}>{n}</div>
+                          <div>{label}</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Button variant="outline" onClick={() => setSimStep((s) => Math.max(1, s - 1))} disabled={simStep === 1}>
+                      {lang === 'es' ? 'Anterior' : 'Previous'}
+                    </Button>
+                    <Badge>{lang === 'es' ? 'Paso actual' : 'Current step'}: {wizardSteps[simStep - 1]}</Badge>
+                    <Button variant="outline" onClick={() => setSimStep((s) => Math.min(8, s + 1))} disabled={simStep === 8}>
+                      {lang === 'es' ? 'Siguiente' : 'Next'}
+                    </Button>
+                  </div>
+                </Card>
+
+                {simStep === 1 ? (
+                  <RealWorldSignals
+                    lang={lang}
+                    initialCountryContext={sim.country_context}
+                    initialCompanyContext={sim.company_context}
+                    onError={setError}
+                    onApply={(country, company) => {
+                      setSim((prev) => ({
+                        ...prev,
+                        country_context: { ...prev.country_context, ...country },
+                        company_context: { ...prev.company_context, ...company },
+                      }))
+                    }}
+                  />
+                ) : null}
+
+                {simStep === 2 ? (
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <ContextClusterCard
+                      title={lang === 'es' ? 'Presión Macro' : 'Macro Pressure'}
+                      fields={['inflation_expectation', 'usd_volatility', 'country_risk_pressure']}
+                      data={sim.country_context}
+                      lang={lang}
+                    />
+                    <ContextClusterCard
+                      title={lang === 'es' ? 'Confianza y Pánico' : 'Trust & Panic'}
+                      fields={['bank_trust_index', 'social_panic_level', 'consumer_confidence']}
+                      data={sim.country_context}
+                      lang={lang}
+                    />
+                    <ContextClusterCard
+                      title={lang === 'es' ? 'Presión Conductual' : 'Behavior Pressure'}
+                      fields={['liquidity_preference_shift', 'crypto_volatility', 'policy_uncertainty']}
+                      data={sim.country_context}
+                      lang={lang}
+                    />
+                    <div className="lg:col-span-3">
+                      <ContextEditor
+                        title={lang === 'es' ? 'Editar Contexto Argentina (Avanzado)' : 'Edit Argentina Context (Advanced)'}
+                        data={sim.country_context}
+                        onChange={(k, v) => setSim((p) => ({ ...p, country_context: { ...p.country_context, [k]: v } }))}
                       />
                     </div>
-                  </Card>
+                  </div>
+                ) : null}
 
-                  <Card className="space-y-3 lg:col-span-2">
-                    <h3 className="font-semibold">{lang === 'es' ? 'Mezcla de Arquetipos' : 'Archetype Mix'}</h3>
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {simStep === 3 ? (
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <ContextEditor
+                      title={lang === 'es' ? 'Retención y Yield' : 'Retention & Yield'}
+                      data={pickContext(sim.company_context, ['wallet_yield_current', 'wallet_yield_new', 'competitor_yield', 'cashback_percent', 'cashback_cap'])}
+                      onChange={(k, v) => setSim((p) => ({ ...p, company_context: { ...p.company_context, [k]: v } }))}
+                    />
+                    <ContextEditor
+                      title={lang === 'es' ? 'Fricción, Soporte y Liquidez' : 'Friction, Support & Liquidity'}
+                      data={pickContext(sim.company_context, ['onboarding_friction', 'KYC_friction', 'app_stability', 'transfer_limits', 'withdrawal_delay_risk', 'support_quality', 'trust_baseline'])}
+                      onChange={(k, v) => setSim((p) => ({ ...p, company_context: { ...p.company_context, [k]: v } }))}
+                    />
+                    <div className="lg:col-span-2">
+                      <ContextEditor
+                        title={lang === 'es' ? 'Estrategia de Crédito' : 'Credit Strategy'}
+                        data={pickContext(sim.company_context, ['credit_offer_aggressiveness', 'loan_rate_level'])}
+                        onChange={(k, v) => setSim((p) => ({ ...p, company_context: { ...p.company_context, [k]: v } }))}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {simStep === 4 ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-4 lg:grid-cols-3">
                       {archetypes.map((a) => (
-                        <div key={a.id} className="rounded-xl border border-border p-3">
-                          <div className="mb-1 text-sm font-medium">{a.name}</div>
+                        <Card key={a.id} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-semibold">{a.name}</h4>
+                            <Badge>{a.balance_bucket}</Badge>
+                          </div>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">{a.description}</p>
+                          <div className="flex flex-wrap gap-1">
+                            <Badge>trust {a.trust_level}</Badge>
+                            <Badge>liq {a.liquidity_preference}</Badge>
+                            <Badge>crypto {a.crypto_affinity}</Badge>
+                            <Badge>rumor {a.rumor_sensitivity}</Badge>
+                          </div>
                           <Input
                             type="number"
                             min={0}
@@ -445,13 +551,46 @@ export default function Page() {
                               }))
                             }
                           />
-                        </div>
+                        </Card>
                       ))}
                     </div>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <Card>
+                        <SectionTitle title={lang === 'es' ? 'Mix de Población' : 'Population Mix'} />
+                        <div className="h-72">
+                          <ResponsiveContainer>
+                            <PieChart>
+                              <Pie data={archetypeMixChart.filter((x) => x.value > 0)} dataKey="value" nameKey="name" innerRadius={60} outerRadius={100}>
+                                {archetypeMixChart.map((_, i) => (
+                                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </Card>
+                      <Card>
+                        <SectionTitle title={lang === 'es' ? 'Control de Pesos' : 'Weight Control'} />
+                        <Badge className={Math.abs(mixTotal - 100) > 0.01 ? 'border-red-500 text-red-600' : ''}>
+                          {lang === 'es' ? 'Total mezcla' : 'Mix Total'}: {mixTotal.toFixed(2)}%
+                        </Badge>
+                      </Card>
+                    </div>
+                  </div>
+                ) : null}
+
+                {simStep === 5 ? (
+                  <Card className="space-y-4">
+                    <SectionTitle title={lang === 'es' ? 'Revisión Previa al Run' : 'Pre-Run Review'} subtitle={lang === 'es' ? 'Validá el contexto antes de simular.' : 'Validate context before simulation.'} />
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      <Field label={lang === 'es' ? 'Agentes' : 'Agents'} value={sim.num_agents} onChange={(v) => setSim((p) => ({ ...p, num_agents: Number(v) }))} />
+                      <Field label={lang === 'es' ? 'Pasos' : 'Steps'} value={sim.num_steps} onChange={(v) => setSim((p) => ({ ...p, num_steps: Number(v) }))} />
+                      <Field label="Seed" value={sim.seed} onChange={(v) => setSim((p) => ({ ...p, seed: Number(v) }))} />
+                      <Field label="Monte Carlo" value={sim.monte_carlo_runs} onChange={(v) => setSim((p) => ({ ...p, monte_carlo_runs: Number(v) }))} />
+                    </div>
                     <div className="flex items-center justify-between">
-                      <Badge className={Math.abs(mixTotal - 100) > 0.01 ? 'border-red-500 text-red-600' : ''}>
-                        {lang === 'es' ? 'Total mezcla' : 'Mix Total'}: {mixTotal.toFixed(2)}%
-                      </Badge>
+                      <Badge>{lang === 'es' ? 'Escenario' : 'Scenario'}: {sim.scenario_name}</Badge>
                       <Button onClick={runSimulation}>
                         <span className="inline-flex items-center gap-2">
                           <Play className="h-4 w-4" /> {t.runSimulation}
@@ -459,135 +598,90 @@ export default function Page() {
                       </Button>
                     </div>
                   </Card>
-                </div>
+                ) : null}
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <ContextEditor title={lang === 'es' ? 'Contexto País' : 'Country Context'} data={sim.country_context} onChange={(k, v) => setSim((p) => ({ ...p, country_context: { ...p.country_context, [k]: v } }))} />
-                  <ContextEditor
-                    title={lang === 'es' ? 'Contexto Compañía' : 'Company Context'}
-                    data={sim.company_context}
-                    onChange={(k, v) => setSim((p) => ({ ...p, company_context: { ...p.company_context, [k]: v } }))}
-                  />
-                </div>
-
-                <Card>
-                  <SectionTitle
-                    title={lang === 'es' ? 'Traductores de Contexto IA' : 'AI Context Translators'}
-                    subtitle={lang === 'es' ? 'Traduce escenarios futuros y eventos globales a variables locales.' : 'Translate future scenarios and global events into local simulation drivers.'}
-                  />
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-xs">{lang === 'es' ? 'Escenario Futuro' : 'Future Scenario'}</label>
-                      <TextArea value={futureText} onChange={(e) => setFutureText(e.target.value)} placeholder="Cambio de gobierno con incertidumbre" rows={4} />
-                      <Button variant="outline" onClick={doTranslateScenario}>
-                        {lang === 'es' ? 'Traducir Escenario' : 'Translate Scenario'}
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs">{lang === 'es' ? 'Evento Global' : 'Global Event'}</label>
-                      <TextArea value={impactText} onChange={(e) => setImpactText(e.target.value)} placeholder="There is a war in the Middle East" rows={4} />
-                      <Button variant="outline" onClick={doTranslateImpact}>
-                        {lang === 'es' ? 'Traducir Impacto' : 'Impact Translate'}
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-
-                {latestRun ? (
+                {latestRun && simStep >= 6 ? (
                   <section className="space-y-4">
-                    <SectionTitle title={t.simulationResults} subtitle={`Run ID: ${latestRun.id}`} />
-
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                      <MetricCard icon={Landmark} label={lang === 'es' ? 'Migración de Fondos' : 'Migration Funds'} value={num(currentMetrics?.estimated_migration_of_funds)} />
-                      <MetricCard icon={Users} label={lang === 'es' ? 'Proxy de Churn' : 'Churn Proxy'} value={pct(currentMetrics?.churn_proxy)} />
-                      <MetricCard icon={Shield} label={lang === 'es' ? 'Estrés de Liquidez' : 'Liquidity Stress'} value={pct(currentMetrics?.liquidity_stress_proxy)} />
-                      <MetricCard icon={BarChart3} label={lang === 'es' ? 'Riesgo Abuso Promo' : 'Promo Abuse Risk'} value={pct(currentMetrics?.promo_abuse_risk_proxy)} />
-                    </div>
-
-                    <BehaviorContagionMap archetypes={archetypes} run={latestRun} payload={sim} lang={lang} />
-
-                    <div className="grid gap-4 lg:grid-cols-3">
-                      <Card className="lg:col-span-2">
-                        <SectionTitle title={lang === 'es' ? 'Dinámica Temporal' : 'Timeline Dynamics'} subtitle={lang === 'es' ? 'Churn, deterioro de confianza y estrés de liquidez.' : 'Churn, trust deterioration, and liquidity stress.'} />
-                        <div className="h-72 w-full">
-                          <ResponsiveContainer>
-                            <LineChart data={timeline}>
-                              <XAxis dataKey="step" />
-                              <YAxis domain={[0, 1]} />
-                              <Tooltip />
-                              <Legend />
-                              <Line type="monotone" dataKey="churn_proxy" stroke="#ef4444" strokeWidth={2} dot={false} name="Churn" />
-                              <Line
-                                type="monotone"
-                                dataKey="trust_deterioration_proxy"
-                                stroke="#3b82f6"
-                                strokeWidth={2}
-                                dot={false}
-                                name="Trust Deterioration"
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="liquidity_stress_proxy"
-                                stroke="#f59e0b"
-                                strokeWidth={2}
-                                dot={false}
-                                name="Liquidity Stress"
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
+                    {simStep === 6 ? (
+                      <>
+                        <SectionTitle title={t.simulationResults} subtitle={`Run ID: ${latestRun.id}`} />
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                          <MetricCard icon={Landmark} label={lang === 'es' ? 'Migración de Fondos' : 'Migration Funds'} value={num(currentMetrics?.estimated_migration_of_funds)} />
+                          <MetricCard icon={Users} label={lang === 'es' ? 'Riesgo de Churn' : 'Churn Risk'} value={pct(currentMetrics?.churn_proxy)} />
+                          <MetricCard icon={Shield} label={lang === 'es' ? 'Estrés de Liquidez' : 'Liquidity Stress'} value={pct(currentMetrics?.liquidity_stress_proxy)} />
+                          <MetricCard icon={BarChart3} label={lang === 'es' ? 'Riesgo Promo' : 'Promo Abuse Risk'} value={pct(currentMetrics?.promo_abuse_risk_proxy)} />
                         </div>
-                      </Card>
-
-                      <Card>
-                        <SectionTitle title={lang === 'es' ? 'Distribución de Acciones' : 'Action Distribution'} subtitle={lang === 'es' ? 'Mezcla final de comportamientos.' : 'Final behavior mix.'} />
-                        <div className="h-72 w-full">
-                          <ResponsiveContainer>
-                            <PieChart>
-                              <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95}>
-                                {donutData.map((_, i) => (
-                                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip />
-                              <Legend />
-                            </PieChart>
-                          </ResponsiveContainer>
+                        <div className="grid gap-4 lg:grid-cols-3">
+                          <Card className="lg:col-span-2">
+                            <SectionTitle title={lang === 'es' ? 'Dinámica Temporal' : 'Timeline Dynamics'} subtitle={lang === 'es' ? 'Churn, confianza y liquidez por paso.' : 'Churn, trust and liquidity per step.'} />
+                            <div className="h-72 w-full">
+                              <ResponsiveContainer>
+                                <LineChart data={timeline}>
+                                  <XAxis dataKey="step" />
+                                  <YAxis domain={[0, 1]} />
+                                  <Tooltip />
+                                  <Legend />
+                                  <Line type="monotone" dataKey="churn_proxy" stroke="#ef4444" strokeWidth={2} dot={false} />
+                                  <Line type="monotone" dataKey="trust_deterioration_proxy" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                                  <Line type="monotone" dataKey="liquidity_stress_proxy" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </Card>
+                          <Card>
+                            <SectionTitle title={lang === 'es' ? 'Distribución Final' : 'Final Actions'} />
+                            <div className="h-72 w-full">
+                              <ResponsiveContainer>
+                                <PieChart>
+                                  <Pie data={donutData} dataKey="value" nameKey="name" innerRadius={55} outerRadius={95}>
+                                    {donutData.map((_, i) => (
+                                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                                    ))}
+                                  </Pie>
+                                  <Legend />
+                                </PieChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </Card>
                         </div>
-                      </Card>
-                    </div>
+                      </>
+                    ) : null}
 
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <Card>
-                        <SectionTitle title={lang === 'es' ? 'Recomendaciones Tácticas' : 'Tactical Recommendations'} subtitle={lang === 'es' ? 'Acciones pragmáticas para producto y riesgo.' : 'Pragmatic actions for product and risk teams.'} />
-                        <div className="space-y-2">
-                          {(latestRun.tactical_recommendations?.tactical_actions || []).map((x, i) => (
-                            <motion.div key={i} whileHover={{ y: -2 }} className="rounded-xl border border-border p-3">
-                              <div className="mb-2 flex items-center justify-between">
-                                <h4 className="font-medium">{x.title}</h4>
-                                <Badge>{lang === 'es' ? 'Retención / Riesgo' : 'Retention / Risk'}</Badge>
-                              </div>
-                              <p className="text-sm text-slate-500 dark:text-slate-400">{x.why}</p>
-                            </motion.div>
-                          ))}
-                        </div>
-                      </Card>
+                    {simStep === 7 ? <BehaviorContagionMap archetypes={archetypes} run={latestRun} payload={sim} lang={lang} /> : null}
 
-                      <Card>
-                        <SectionTitle title={lang === 'es' ? 'Laboratorio de Innovación' : 'Innovation Lab'} subtitle={lang === 'es' ? 'Conceptos disruptivos inspirados globalmente.' : 'Disruptive and globally-inspired concepts.'} />
-                        <div className="space-y-2">
-                          {(latestRun.disruptive_recommendations?.innovation_lab || []).map((x, i) => (
-                            <motion.div key={i} whileHover={{ scale: 1.01 }} className="rounded-xl border border-border p-3">
-                              <div className="mb-1 flex items-center justify-between gap-2">
-                                <h4 className="font-medium">{x.idea}</h4>
-                                <Lightbulb className="h-4 w-4 text-amber-500" />
-                              </div>
-                              <p className="text-sm text-slate-500 dark:text-slate-400">{x.fit}</p>
-                              <p className="mt-2 text-xs">{lang === 'es' ? 'Inspiración' : 'Inspiration'}: {x.inspiration}</p>
-                            </motion.div>
-                          ))}
-                        </div>
-                      </Card>
-                    </div>
+                    {simStep === 8 ? (
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <Card>
+                          <SectionTitle title={lang === 'es' ? 'Acciones Tácticas' : 'Tactical Actions'} subtitle={lang === 'es' ? 'Mitigación de riesgo, retención y liquidez.' : 'Risk mitigation, retention and liquidity actions.'} />
+                          <div className="space-y-2">
+                            {(latestRun.tactical_recommendations?.tactical_actions || []).map((x, i) => (
+                              <motion.div key={i} whileHover={{ y: -2 }} className="rounded-xl border border-border p-3">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <h4 className="font-medium">{x.title}</h4>
+                                  <Badge>{lang === 'es' ? 'Táctico' : 'Tactical'}</Badge>
+                                </div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">{x.why}</p>
+                              </motion.div>
+                            ))}
+                          </div>
+                        </Card>
+                        <Card>
+                          <SectionTitle title={lang === 'es' ? 'Innovation Lab' : 'Innovation Lab'} subtitle={lang === 'es' ? 'Ideas disruptivas para nuevos productos.' : 'Disruptive ideas for new products.'} />
+                          <div className="space-y-2">
+                            {(latestRun.disruptive_recommendations?.innovation_lab || []).map((x, i) => (
+                              <motion.div key={i} whileHover={{ scale: 1.01 }} className="rounded-xl border border-border p-3">
+                                <div className="mb-1 flex items-center justify-between gap-2">
+                                  <h4 className="font-medium">{x.idea}</h4>
+                                  <Lightbulb className="h-4 w-4 text-amber-500" />
+                                </div>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">{x.fit}</p>
+                                <p className="mt-2 text-xs">{lang === 'es' ? 'Inspiración' : 'Inspiration'}: {x.inspiration}</p>
+                              </motion.div>
+                            ))}
+                          </div>
+                        </Card>
+                      </div>
+                    ) : null}
                   </section>
                 ) : null}
               </section>
@@ -947,6 +1041,43 @@ function ContextEditor({
                 </option>
               ))}
             </Select>
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+function pickContext(data: Record<string, QualLevel>, keys: string[]) {
+  const out: Record<string, QualLevel> = {}
+  for (const k of keys) {
+    if (data[k]) out[k] = data[k]
+  }
+  return out
+}
+
+function ContextClusterCard({
+  title,
+  fields,
+  data,
+  lang,
+}: {
+  title: string
+  fields: string[]
+  data: Record<string, QualLevel>
+  lang: 'es' | 'en'
+}) {
+  return (
+    <Card>
+      <SectionTitle title={title} />
+      <div className="space-y-2">
+        {fields.map((key) => (
+          <div key={key} className="rounded-xl border border-border p-3">
+            <div className="text-xs text-slate-500">{key}</div>
+            <div className="mt-1 flex items-center justify-between">
+              <span className="text-sm font-medium">{data[key]}</span>
+              <Badge>{lang === 'es' ? 'impacto' : 'impact'}</Badge>
+            </div>
           </div>
         ))}
       </div>
