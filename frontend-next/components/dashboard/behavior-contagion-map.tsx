@@ -329,10 +329,66 @@ export function BehaviorContagionMap({
             subtitle={lang === 'es' ? 'Interpretación en vivo del paso actual.' : 'Live interpretation for the current simulation step.'}
           />
           <div className="space-y-3 text-sm">
-            <Insight icon={Waves} label={lang === 'es' ? 'Disparador inicial' : 'Initial trigger'} value={analysis.trigger} />
-            <Insight icon={AlertTriangle} label={lang === 'es' ? 'Más afectados' : 'Most affected'} value={analysis.affected.join(', ') || '-'} />
-            <Insight icon={Gauge} label={lang === 'es' ? 'Acciones dominantes' : 'Dominant actions'} value={analysis.dominantActions.join(', ') || '-'} />
-            <Insight icon={TrendingUp} label={lang === 'es' ? 'Segmentos resilientes' : 'Resisting panic'} value={analysis.resistant.join(', ') || '-'} />
+            <Insight
+              icon={Waves}
+              label={lang === 'es' ? 'Disparador inicial' : 'Initial trigger'}
+              value={analysis.trigger}
+              meaning={
+                lang === 'es'
+                  ? 'Segmento que inicia la propagación por sensibilidad y velocidad de reacción.'
+                  : 'Segment most likely to initiate spread due to sensitivity and reaction speed.'
+              }
+              whyNow={
+                lang === 'es'
+                  ? `Se marca "${analysis.trigger}" porque combina mayor influencia relativa con el estado de estrés del paso actual.`
+                  : `"${analysis.trigger}" is selected because it combines higher relative influence with current-step stress conditions.`
+              }
+            />
+            <Insight
+              icon={AlertTriangle}
+              label={lang === 'es' ? 'Más afectados' : 'Most affected'}
+              value={analysis.affected.join(', ') || '-'}
+              meaning={
+                lang === 'es'
+                  ? 'Arquetipos que absorbieron más contagio y cambiaron a estados críticos (pánico/cripto).'
+                  : 'Archetypes that absorbed more contagion and shifted to critical states (panic/crypto).'
+              }
+              whyNow={
+                lang === 'es'
+                  ? 'Se priorizan por combinación de exposición, influencia recibida y estado observado en este paso.'
+                  : 'They are prioritized by exposure, received influence, and observed state in this step.'
+              }
+            />
+            <Insight
+              icon={Gauge}
+              label={lang === 'es' ? 'Acciones dominantes' : 'Dominant actions'}
+              value={analysis.dominantActions.join(', ') || '-'}
+              meaning={
+                lang === 'es'
+                  ? 'Conductas más frecuentes que están guiando el movimiento sistémico.'
+                  : 'Most frequent behaviors driving systemic movement.'
+              }
+              whyNow={
+                lang === 'es'
+                  ? 'Surgen de la acción principal de cada arquetipo activo y muestran el mecanismo de transmisión.'
+                  : 'They come from each active archetype dominant action and indicate the transmission mechanism.'
+              }
+            />
+            <Insight
+              icon={TrendingUp}
+              label={lang === 'es' ? 'Segmentos resilientes' : 'Resisting panic'}
+              value={analysis.resistant.join(', ') || '-'}
+              meaning={
+                lang === 'es'
+                  ? 'Segmentos que mantienen estabilidad o reaccionan con uso interno sin amplificar corrida.'
+                  : 'Segments that stay stable or react with internal usage without amplifying the run.'
+              }
+              whyNow={
+                lang === 'es'
+                  ? 'Se consideran resilientes por permanecer en estados estable/oportunidad bajo el mismo shock.'
+                  : 'They are considered resilient because they remain in stable/opportunity states under the same shock.'
+              }
+            />
           </div>
         </Card>
       </div>
@@ -344,18 +400,26 @@ function Insight({
   icon: Icon,
   label,
   value,
+  meaning,
+  whyNow,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: string
+  meaning: string
+  whyNow: string
 }) {
   return (
-    <div className="rounded-xl border border-border p-3">
+    <div className="group rounded-xl border border-border p-3">
       <div className="mb-1 inline-flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
       <p className="font-medium">{value}</p>
+      <div className="mt-2 overflow-hidden rounded-lg border border-blue-500/20 bg-blue-500/5 p-2 text-xs opacity-0 transition-all duration-200 group-hover:opacity-100">
+        <p className="font-medium text-blue-700 dark:text-blue-300">{meaning}</p>
+        <p className="mt-1 text-slate-600 dark:text-slate-300">{whyNow}</p>
+      </div>
     </div>
   )
 }

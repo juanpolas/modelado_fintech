@@ -11,6 +11,8 @@ import {
   Lightbulb,
   LogOut,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Play,
   Settings,
   Shield,
@@ -209,6 +211,71 @@ const ARCHETYPE_PROP_META_EN: Record<string, string> = {
   risk_aversion: 'Aversion to financial risk taking.',
 }
 
+const COMPANY_FIELD_DOC: Record<
+  string,
+  {
+    es: { label: string; help: string }
+    en: { label: string; help: string }
+  }
+> = {
+  wallet_yield_current: {
+    es: { label: 'Rendimiento actual de billetera', help: 'Nivel de rendimiento vigente hoy en tu producto.' },
+    en: { label: 'Current wallet yield', help: 'Current yield level in your product.' },
+  },
+  wallet_yield_new: {
+    es: { label: 'Rendimiento propuesto', help: 'Rendimiento que querés testear para medir impacto en retención/migración.' },
+    en: { label: 'Proposed wallet yield', help: 'Yield you want to test for retention/migration impact.' },
+  },
+  competitor_yield: {
+    es: { label: 'Rendimiento del competidor', help: 'Nivel de atractivo externo que compite por tus saldos.' },
+    en: { label: 'Competitor yield', help: 'External attractiveness competing for your balances.' },
+  },
+  cashback_percent: {
+    es: { label: 'Intensidad de cashback', help: 'Magnitud del incentivo promocional para activar uso.' },
+    en: { label: 'Cashback intensity', help: 'Promotional incentive level to activate usage.' },
+  },
+  cashback_cap: {
+    es: { label: 'Tope de cashback', help: 'Límite del beneficio para controlar costo y abuso.' },
+    en: { label: 'Cashback cap', help: 'Benefit limit to control cost and abuse.' },
+  },
+  onboarding_friction: {
+    es: { label: 'Fricción de onboarding', help: 'Dificultad de alta inicial; afecta conversión y abandono temprano.' },
+    en: { label: 'Onboarding friction', help: 'Sign-up difficulty; impacts conversion and early drop-off.' },
+  },
+  KYC_friction: {
+    es: { label: 'Fricción KYC', help: 'Carga de verificación regulatoria; impacta velocidad de activación.' },
+    en: { label: 'KYC friction', help: 'Regulatory verification burden; impacts activation speed.' },
+  },
+  app_stability: {
+    es: { label: 'Estabilidad de app', help: 'Confiabilidad operativa percibida; clave para confianza y pánico.' },
+    en: { label: 'App stability', help: 'Perceived operational reliability; key for trust and panic.' },
+  },
+  transfer_limits: {
+    es: { label: 'Límites de transferencia', help: 'Restricciones de movimiento que pueden frenar o desviar fondos.' },
+    en: { label: 'Transfer limits', help: 'Movement constraints that can slow or redirect funds.' },
+  },
+  withdrawal_delay_risk: {
+    es: { label: 'Riesgo de demora en retiros', help: 'Probabilidad percibida de fricción/demora al retirar.' },
+    en: { label: 'Withdrawal delay risk', help: 'Perceived probability of friction/delay when withdrawing.' },
+  },
+  support_quality: {
+    es: { label: 'Calidad de soporte', help: 'Capacidad de contener incertidumbre y sostener confianza.' },
+    en: { label: 'Support quality', help: 'Ability to contain uncertainty and preserve trust.' },
+  },
+  trust_baseline: {
+    es: { label: 'Confianza base en la marca', help: 'Punto de partida reputacional antes de shocks externos.' },
+    en: { label: 'Baseline trust in brand', help: 'Reputational starting point before external shocks.' },
+  },
+  credit_offer_aggressiveness: {
+    es: { label: 'Agresividad comercial de crédito', help: 'Qué tan fuerte empujás originación/oferta crediticia.' },
+    en: { label: 'Credit offer aggressiveness', help: 'How aggressively lending offers are pushed.' },
+  },
+  loan_rate_level: {
+    es: { label: 'Nivel de tasa de crédito', help: 'Costo del crédito para el usuario; afecta demanda y estrés.' },
+    en: { label: 'Loan rate level', help: 'User borrowing cost; affects demand and stress.' },
+  },
+}
+
 const emptyPayload = (): SimulationPayload => ({
   scenario_id: null,
   scenario_name: 'custom',
@@ -230,6 +297,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabKey>('new')
   const [dark, setDark] = useState(true)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [lang, setLang] = useState<Lang>('es')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -295,17 +363,35 @@ export default function Page() {
     const storedProfiles = Array.isArray(st.context_profiles) ? (st.context_profiles as ContextProfile[]) : []
     const baseProfile: ContextProfile = {
       id: 'ctx_base_default',
-      title: lang === 'es' ? 'Contexto Base Argentina' : 'Argentina Base Context',
+      title: lang === 'es' ? 'Contexto Base Argentina v2' : 'Argentina Base Context v2',
       description:
         lang === 'es'
           ? 'Perfil base editable para simulaciones.'
           : 'Editable baseline profile for simulations.',
       country_context: copy(DEFAULT_COUNTRY_CONTEXT),
     }
-    const mergedProfiles = storedProfiles.length ? storedProfiles : [baseProfile]
+    const normalizedStoredProfiles = storedProfiles.map((p) =>
+      p.id === 'ctx_base_default'
+        ? {
+            ...p,
+            title: baseProfile.title,
+          }
+        : p
+    )
+    const withBase =
+      normalizedStoredProfiles.some((p) => p.id === 'ctx_base_default')
+        ? normalizedStoredProfiles
+        : [baseProfile, ...normalizedStoredProfiles]
+    const mergedProfiles = withBase.length ? withBase : [baseProfile]
     setContextProfiles(mergedProfiles)
-    if (!selectedContextId && mergedProfiles[0]) setSelectedContextId(mergedProfiles[0].id)
-    if (!baselineContextTitle && mergedProfiles[0]) setBaselineContextTitle(mergedProfiles[0].title)
+    if (!selectedContextId) {
+      const preferred = mergedProfiles.find((p) => p.id === 'ctx_base_default') || mergedProfiles[0]
+      if (preferred) setSelectedContextId(preferred.id)
+    }
+    if (!baselineContextTitle) {
+      const preferred = mergedProfiles.find((p) => p.id === 'ctx_base_default') || mergedProfiles[0]
+      if (preferred) setBaselineContextTitle(preferred.title)
+    }
     if (!latestRun && r[0]) setLatestRun(r[0])
     if (!selectedArchetypeId && a[0]) setSelectedArchetypeId(a[0].id)
     if (!selectedScenarioId && s[0]) setSelectedScenarioId(s[0].id)
@@ -380,6 +466,95 @@ export default function Page() {
             'Results',
             'Contagion',
             'Recommendations',
+          ],
+    [lang]
+  )
+  const wizardStepMeta = useMemo(
+    () =>
+      lang === 'es'
+        ? [
+            {
+              title: 'Señales',
+              short: 'Ingesta de X + noticias y fusión de señales.',
+              rationale: 'Define el contexto de entrada real. Si esta etapa está mal, el resto de la simulación pierde validez.',
+            },
+            {
+              title: 'Contexto AR',
+              short: 'Base actual vs hipótesis a testear.',
+              rationale: 'Separa “cómo está hoy” de “qué pasaría si…”, para interpretar resultados con trazabilidad.',
+            },
+            {
+              title: 'Estrategia de Compañía',
+              short: 'Palancas de producto, fricción y confianza.',
+              rationale: 'Modela decisiones accionables del negocio y su impacto en conducta de usuarios.',
+            },
+            {
+              title: 'Mix de Arquetipos',
+              short: 'Composición poblacional por segmentos.',
+              rationale: 'La mezcla define sensibilidad sistémica: cambia contagio, churn y salida de fondos.',
+            },
+            {
+              title: 'Revisión y Run',
+              short: 'Chequeo final de parámetros y ejecución.',
+              rationale: 'Garantiza que el experimento sea entendible y reproducible antes de correr.',
+            },
+            {
+              title: 'Resultados',
+              short: 'KPIs, dinámica temporal y distribución de acciones.',
+              rationale: 'Muestra impacto agregado y evolución del riesgo durante la simulación.',
+            },
+            {
+              title: 'Contagio',
+              short: 'Propagación de comportamiento entre arquetipos.',
+              rationale: 'Explica quién dispara el evento, quién amplifica y quién resiste.',
+            },
+            {
+              title: 'Recomendaciones',
+              short: 'Acciones tácticas e ideas de innovación.',
+              rationale: 'Traduce hallazgos del modelo en decisiones ejecutables de corto y mediano plazo.',
+            },
+          ]
+        : [
+            {
+              title: 'Signals',
+              short: 'Ingest X + news and fuse signals.',
+              rationale: 'Sets the real input context. If this stage is wrong, downstream simulation quality drops.',
+            },
+            {
+              title: 'Argentina Context',
+              short: 'Current baseline vs hypothesis under test.',
+              rationale: 'Separates “current state” from “what-if” assumptions for traceable interpretation.',
+            },
+            {
+              title: 'Company Strategy',
+              short: 'Product levers, friction and trust controls.',
+              rationale: 'Models actionable business decisions and their behavioral impact.',
+            },
+            {
+              title: 'Archetype Mix',
+              short: 'Population composition by segment.',
+              rationale: 'Composition defines systemic sensitivity: contagion, churn and outflows.',
+            },
+            {
+              title: 'Review & Run',
+              short: 'Final check and execution.',
+              rationale: 'Ensures the experiment is understandable and reproducible before running.',
+            },
+            {
+              title: 'Results',
+              short: 'KPIs, timeline dynamics and action mix.',
+              rationale: 'Shows aggregate impact and risk evolution across the run.',
+            },
+            {
+              title: 'Contagion',
+              short: 'Behavior spread across archetypes.',
+              rationale: 'Explains trigger segments, amplifiers and resilient groups.',
+            },
+            {
+              title: 'Recommendations',
+              short: 'Tactical actions and innovation ideas.',
+              rationale: 'Converts model findings into practical strategy decisions.',
+            },
           ],
     [lang]
   )
@@ -699,6 +874,21 @@ export default function Page() {
     )
   }
 
+  const canAdvanceFromContextStep = simStep !== 2 || (Boolean(selectedScenarioId) && sim.scenario_id === selectedScenarioId)
+
+  function goNextStep() {
+    if (simStep === 2 && !canAdvanceFromContextStep) {
+      setError(
+        lang === 'es'
+          ? 'Para continuar, primero elegí un escenario hipotético y hacé clic en "Aplicar a simulación".'
+          : 'To continue, first select a hypothetical scenario and click "Apply to simulation".'
+      )
+      return
+    }
+    setError('')
+    setSimStep((s) => Math.min(8, s + 1))
+  }
+
   function levelBadgeClass(level?: QualLevel) {
     if (level === 'very_high') return 'border-red-500/40 bg-red-500/15 text-red-300'
     if (level === 'high') return 'border-orange-500/40 bg-orange-500/15 text-orange-300'
@@ -893,11 +1083,29 @@ export default function Page() {
   return (
     <div className="dashboard-bg min-h-screen p-4">
       <div className="mx-auto flex max-w-[1600px] gap-4">
-        <aside className="glass-card sticky top-4 hidden h-[calc(100vh-2rem)] w-[270px] flex-col p-4 lg:flex">
+        <aside
+          className={`glass-card sticky top-4 hidden h-[calc(100vh-2rem)] flex-col p-4 transition-all duration-200 lg:flex ${
+            sidebarCollapsed ? 'w-[86px]' : 'w-[270px]'
+          }`}
+        >
           <div className="mb-6">
-            <p className="text-xs uppercase tracking-[0.22em] text-slate-400">MiroFish AR</p>
-            <h1 className="mt-2 text-xl font-semibold">{lang === 'es' ? 'Inteligencia Fintech' : 'Fintech Intelligence'}</h1>
-            <p className="mt-1 text-xs text-slate-400">{t.appSubtitle}</p>
+            <div className={`flex items-start ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+              {!sidebarCollapsed ? (
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">MiroFish AR</p>
+                  <h1 className="mt-2 text-xl font-semibold">{lang === 'es' ? 'Inteligencia Fintech' : 'Fintech Intelligence'}</h1>
+                  <p className="mt-1 text-xs text-slate-400">{t.appSubtitle}</p>
+                </div>
+              ) : null}
+              <Button
+                variant="outline"
+                className={sidebarCollapsed ? 'px-2 py-2' : 'px-2 py-2'}
+                onClick={() => setSidebarCollapsed((v) => !v)}
+                title={sidebarCollapsed ? (lang === 'es' ? 'Expandir menú' : 'Expand menu') : (lang === 'es' ? 'Ocultar menú' : 'Collapse menu')}
+              >
+                {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
           <div className="space-y-2">
             {NAV_ITEMS.map((item) => {
@@ -907,28 +1115,29 @@ export default function Page() {
                 <button
                   key={item.key}
                   onClick={() => setTab(item.key)}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
+                  title={t.nav[item.key]}
+                  className={`flex w-full items-center rounded-xl px-3 py-2 text-left text-sm transition ${
                     active ? 'bg-primary/20 text-white' : 'text-slate-300 hover:bg-white/5'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
-                  <span>{t.nav[item.key]}</span>
+                  {!sidebarCollapsed ? <span className="ml-3">{t.nav[item.key]}</span> : null}
                 </button>
               )
             })}
           </div>
           <div className="mt-auto space-y-2">
-            <div className="flex gap-2">
-              <Button className="flex-1" variant="outline" onClick={() => setLang((v) => (v === 'es' ? 'en' : 'es'))}>
+            <div className={`flex gap-2 ${sidebarCollapsed ? 'flex-col' : ''}`}>
+              <Button className={sidebarCollapsed ? '' : 'flex-1'} variant="outline" onClick={() => setLang((v) => (v === 'es' ? 'en' : 'es'))} title={lang === 'es' ? 'Cambiar idioma' : 'Switch language'}>
                 {lang.toUpperCase()}
               </Button>
-              <Button className="flex-1" variant="outline" onClick={() => setDark((v) => !v)} title={dark ? t.light : t.dark}>
+              <Button className={sidebarCollapsed ? '' : 'flex-1'} variant="outline" onClick={() => setDark((v) => !v)} title={dark ? t.light : t.dark}>
                 {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
             </div>
-            <Button className="w-full" variant="danger" onClick={doLogout}>
+            <Button className="w-full" variant="danger" onClick={doLogout} title={t.logout}>
               <span className="inline-flex items-center gap-2">
-                <LogOut className="h-4 w-4" /> {t.logout}
+                <LogOut className="h-4 w-4" /> {!sidebarCollapsed ? t.logout : null}
               </span>
             </Button>
           </div>
@@ -985,25 +1194,54 @@ export default function Page() {
           >
             {tab === 'new' ? (
               <section className="space-y-6">
-                <SectionTitle
-                  title={lang === 'es' ? 'Flujo Guiado de Simulación' : 'Guided Simulation Journey'}
-                  subtitle={
-                    lang === 'es'
-                      ? 'Seguí una secuencia clara: señales, contexto, estrategia, arquetipos, revisión y resultados.'
-                      : 'Follow a clear sequence: signals, context, strategy, archetypes, review, and results.'
-                  }
-                />
+                <Card className="border-primary/30 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-violet-500/10 p-6">
+                  <SectionTitle
+                    title={lang === 'es' ? 'Flujo Guiado de Simulación' : 'Guided Simulation Journey'}
+                    subtitle={
+                      lang === 'es'
+                        ? 'Esta es la vista principal de trabajo: completá cada etapa para construir una simulación consistente y accionable.'
+                        : 'This is the main working area: complete each stage to build a consistent, actionable simulation.'
+                    }
+                  />
+                  <div className="mt-3 grid gap-3 md:grid-cols-3">
+                    <Card className="p-3">
+                      <p className="text-xs text-slate-400">{lang === 'es' ? 'Enfoque' : 'Focus'}</p>
+                      <p className="mt-1 text-sm font-medium">{lang === 'es' ? 'Laboratorio de decisión' : 'Decision lab'}</p>
+                    </Card>
+                    <Card className="p-3">
+                      <p className="text-xs text-slate-400">{lang === 'es' ? 'Qué construir' : 'What to build'}</p>
+                      <p className="mt-1 text-sm font-medium">{lang === 'es' ? 'Escenario + contexto + respuesta' : 'Scenario + context + response'}</p>
+                    </Card>
+                    <Card className="p-3">
+                      <p className="text-xs text-slate-400">{lang === 'es' ? 'Resultado esperado' : 'Expected output'}</p>
+                      <p className="mt-1 text-sm font-medium">{lang === 'es' ? 'KPIs, contagio y recomendaciones' : 'KPIs, contagion and recommendations'}</p>
+                    </Card>
+                  </div>
+                </Card>
 
-                <Card className="space-y-4">
-                  <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-8">
-                    {wizardSteps.map((label, idx) => {
+                <Card className="space-y-4 p-5">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {wizardStepMeta.map((stepMeta, idx) => {
                       const n = idx + 1
                       const active = simStep === n
                       const done = simStep > n
                       return (
-                        <div key={label} className={`rounded-xl border p-2 text-center text-xs ${active ? 'border-primary bg-primary/10' : 'border-border'} ${done ? 'opacity-90' : ''}`}>
-                          <div className={`mx-auto mb-1 flex h-6 w-6 items-center justify-center rounded-full ${active || done ? 'bg-primary text-white' : 'bg-muted'}`}>{n}</div>
-                          <div>{label}</div>
+                        <div
+                          key={stepMeta.title}
+                          title={stepMeta.rationale}
+                          className={`group relative rounded-xl border p-3 text-xs transition ${
+                            active ? 'border-primary bg-primary/10 shadow-[0_10px_22px_rgba(59,130,246,0.20)]' : 'border-border'
+                          } ${done ? 'opacity-95' : ''}`}
+                        >
+                          <div className="mb-2 flex items-center gap-2">
+                            <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold ${active || done ? 'bg-primary text-white' : 'bg-muted'}`}>{n}</div>
+                            <p className="font-medium">{stepMeta.title}</p>
+                          </div>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">{stepMeta.short}</p>
+                          <div className="pointer-events-none absolute left-2 right-2 top-full z-20 mt-2 rounded-lg border border-blue-500/20 bg-slate-950/95 p-2 text-[11px] text-slate-200 opacity-0 shadow-xl transition group-hover:opacity-100">
+                            <p className="font-medium text-blue-300">{lang === 'es' ? 'Racional del paso' : 'Step rationale'}</p>
+                            <p className="mt-1">{stepMeta.rationale}</p>
+                          </div>
                         </div>
                       )
                     })}
@@ -1013,10 +1251,17 @@ export default function Page() {
                       {lang === 'es' ? 'Anterior' : 'Previous'}
                     </Button>
                     <Badge>{lang === 'es' ? 'Paso actual' : 'Current step'}: {wizardSteps[simStep - 1]}</Badge>
-                    <Button variant="outline" onClick={() => setSimStep((s) => Math.min(8, s + 1))} disabled={simStep === 8}>
+                    <Button variant="outline" onClick={goNextStep} disabled={simStep === 8 || !canAdvanceFromContextStep}>
                       {lang === 'es' ? 'Siguiente' : 'Next'}
                     </Button>
                   </div>
+                  {simStep === 2 && !canAdvanceFromContextStep ? (
+                    <p className="text-xs text-amber-600 dark:text-amber-300">
+                      {lang === 'es'
+                        ? 'Bloqueado: aplicá el escenario hipotético seleccionado para poder continuar.'
+                        : 'Blocked: apply the selected hypothetical scenario to continue.'}
+                    </p>
+                  ) : null}
                 </Card>
 
                 {simStep === 1 ? (
@@ -1508,12 +1753,33 @@ export default function Page() {
                           </p>
                           <div className="space-y-2">
                             {(latestRun.tactical_recommendations?.tactical_actions || []).map((x, i) => (
-                              <motion.div key={i} whileHover={{ y: -2 }} className="rounded-xl border border-border p-3">
+                              <motion.div key={i} whileHover={{ y: -2 }} className="group rounded-xl border border-border p-3">
                                 <div className="mb-2 flex items-center justify-between">
                                   <h4 className="font-medium">{x.title}</h4>
                                   <Badge>{x.category || (lang === 'es' ? 'Táctico' : 'Tactical')}</Badge>
                                 </div>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">{x.why}</p>
+                                {(() => {
+                                  const ctx = tacticalRecommendationContext(
+                                    x as { title: string; why?: string; category?: string },
+                                    latestRun,
+                                    lang
+                                  )
+                                  return (
+                                    <div className="mt-2 overflow-hidden rounded-lg border border-blue-500/20 bg-blue-500/5 p-2 text-xs opacity-0 transition-all duration-200 group-hover:opacity-100">
+                                      <p className="font-medium text-blue-700 dark:text-blue-300">
+                                        {lang === 'es' ? 'Racional' : 'Rationale'}
+                                      </p>
+                                      <p className="mt-1 text-slate-600 dark:text-slate-300">{ctx.rationale}</p>
+                                      <p className="mt-1 text-slate-500 dark:text-slate-400">
+                                        {lang === 'es' ? 'Drivers' : 'Drivers'}: {ctx.drivers.join(' • ')}
+                                      </p>
+                                      <p className="mt-1 text-slate-500 dark:text-slate-400">
+                                        {lang === 'es' ? 'Motivo' : 'Why now'}: {ctx.whyNow}
+                                      </p>
+                                    </div>
+                                  )
+                                })()}
                               </motion.div>
                             ))}
                             {(latestRun.tactical_recommendations?.tactical_actions || []).length === 0 ? (
@@ -1530,7 +1796,7 @@ export default function Page() {
                           </p>
                           <div className="space-y-2">
                             {(latestRun.disruptive_recommendations?.innovation_lab || []).map((x, i) => (
-                              <motion.div key={i} whileHover={{ scale: 1.01 }} className="rounded-xl border border-border p-3">
+                              <motion.div key={i} whileHover={{ scale: 1.01 }} className="group rounded-xl border border-border p-3">
                                 <div className="mb-1 flex items-center justify-between gap-2">
                                   <h4 className="font-medium">{x.idea}</h4>
                                   <Lightbulb className="h-4 w-4 text-amber-500" />
@@ -1538,6 +1804,27 @@ export default function Page() {
                                 <p className="text-sm text-slate-500 dark:text-slate-400">{x.fit}</p>
                                 <p className="mt-2 text-xs">{lang === 'es' ? 'Inspiración' : 'Inspiration'}: {x.inspiration}</p>
                                 {x.disruptiveness ? <p className="mt-1 text-xs">{lang === 'es' ? 'Nivel' : 'Level'}: {x.disruptiveness}</p> : null}
+                                {(() => {
+                                  const ctx = innovationRecommendationContext(
+                                    x as { idea: string; fit?: string; inspiration?: string; disruptiveness?: string },
+                                    latestRun,
+                                    lang
+                                  )
+                                  return (
+                                    <div className="mt-2 overflow-hidden rounded-lg border border-purple-500/20 bg-purple-500/5 p-2 text-xs opacity-0 transition-all duration-200 group-hover:opacity-100">
+                                      <p className="font-medium text-purple-700 dark:text-purple-300">
+                                        {lang === 'es' ? 'Contexto de propuesta' : 'Proposal context'}
+                                      </p>
+                                      <p className="mt-1 text-slate-600 dark:text-slate-300">{ctx.rationale}</p>
+                                      <p className="mt-1 text-slate-500 dark:text-slate-400">
+                                        {lang === 'es' ? 'Se apoya en' : 'Built on'}: {ctx.drivers.join(' • ')}
+                                      </p>
+                                      <p className="mt-1 text-slate-500 dark:text-slate-400">
+                                        {lang === 'es' ? 'Objetivo de impacto' : 'Impact goal'}: {ctx.impactGoal}
+                                      </p>
+                                    </div>
+                                  )
+                                })()}
                               </motion.div>
                             ))}
                             {(latestRun.disruptive_recommendations?.innovation_lab || []).length === 0 ? (
@@ -2501,6 +2788,31 @@ function ContextEditor({
     high: 'border-orange-500/40 bg-orange-500/15 text-orange-300',
     very_high: 'border-red-500/40 bg-red-500/15 text-red-300',
   }
+  const qualMeaning = (q: QualLevel) => {
+    if (lang === 'es') {
+      if (q === 'very_low') return 'Impacto mínimo o fricción muy baja en este factor.'
+      if (q === 'low') return 'Impacto bajo, se espera efecto moderado.'
+      if (q === 'medium') return 'Nivel intermedio/base de referencia para este factor.'
+      if (q === 'high') return 'Impacto alto, cambia de forma visible el comportamiento.'
+      return 'Impacto muy alto, factor dominante en la dinámica simulada.'
+    }
+    if (q === 'very_low') return 'Minimal impact or very low friction for this factor.'
+    if (q === 'low') return 'Low impact; moderate behavioral effect expected.'
+    if (q === 'medium') return 'Baseline/intermediate level for this factor.'
+    if (q === 'high') return 'High impact; visibly shifts behavior.'
+    return 'Very high impact; dominant driver in simulated dynamics.'
+  }
+  const docFor = (key: string) => {
+    const d = COMPANY_FIELD_DOC[key]
+    if (!d) return null
+    return d[lang]
+  }
+  const labelFor = (key: string) => docFor(key)?.label || key
+  const helpFor = (key: string) =>
+    docFor(key)?.help ||
+    (lang === 'es'
+      ? 'Variable cualitativa que afecta la reacción de usuarios en la simulación.'
+      : 'Qualitative variable that affects user reaction in simulation.')
   return (
     <Card>
       <SectionTitle title={title} />
@@ -2508,16 +2820,24 @@ function ContextEditor({
         {Object.keys(data).map((key) => (
           <div key={key}>
             <div className="mb-1 flex items-center justify-between gap-2">
-              <label className="block text-xs">{key}</label>
-              <Badge className={qualClass[data[key] || 'medium']}>{qualText(data[key] || 'medium')}</Badge>
+              <label className="block text-xs" title={helpFor(key)}>
+                {labelFor(key)}
+              </label>
+              <Badge className={qualClass[data[key] || 'medium']} title={qualMeaning(data[key] || 'medium')}>
+                {qualText(data[key] || 'medium')}
+              </Badge>
             </div>
+            <p className="mb-1 text-[11px] text-slate-500 dark:text-slate-400">{helpFor(key)}</p>
             <Select value={data[key]} onChange={(e) => onChange(key, e.target.value as QualLevel)}>
               {QUAL_LEVELS.map((q) => (
-                <option key={q} value={q}>
+                <option key={q} value={q} title={qualMeaning(q)}>
                   {qualText(q)}
                 </option>
               ))}
             </Select>
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+              {lang === 'es' ? 'Nivel actual' : 'Current level'}: {qualText(data[key] || 'medium')} — {qualMeaning(data[key] || 'medium')}
+            </p>
           </div>
         ))}
       </div>
@@ -2800,6 +3120,87 @@ function panicDriverLabel(driver: string, lang: Lang) {
     crypto_flight_score: { es: 'vuelo hacia cripto', en: 'crypto flight' },
   }
   return labels[driver]?.[lang] || driver
+}
+
+function tacticalRecommendationContext(
+  item: { title: string; why?: string; category?: string },
+  run: RunRecord,
+  lang: Lang
+) {
+  const s = run.outputs?.single_run
+  const panic = Number(s?.panic_index_score || 0)
+  const churn = Number(s?.churn_proxy || 0)
+  const liquidity = Number(s?.liquidity_stress_proxy || 0)
+  const trust = Number(s?.trust_deterioration_proxy || 0)
+
+  const drivers: string[] = []
+  if (panic >= 60) drivers.push(lang === 'es' ? 'Panic Index elevado' : 'High Panic Index')
+  if (liquidity >= 0.5) drivers.push(lang === 'es' ? 'estrés de liquidez' : 'liquidity stress')
+  if (churn >= 0.35) drivers.push(lang === 'es' ? 'riesgo de churn' : 'churn risk')
+  if (trust >= 0.45) drivers.push(lang === 'es' ? 'deterioro de confianza' : 'trust deterioration')
+  if (!drivers.length) drivers.push(lang === 'es' ? 'señales preventivas tempranas' : 'early preventive signals')
+
+  const category = item.category || 'risk_mitigation'
+  const whyNowMap: Record<string, { es: string; en: string }> = {
+    risk_mitigation: {
+      es: 'Reduce riesgo sistémico antes de que se amplifique el contagio.',
+      en: 'Reduces systemic risk before contagion amplifies.',
+    },
+    retention: {
+      es: 'Protege base activa y evita migración silenciosa a competidores.',
+      en: 'Protects active base and prevents silent migration to competitors.',
+    },
+    liquidity: {
+      es: 'Contiene outflows y mejora visibilidad operativa de fondos.',
+      en: 'Contains outflows and improves operational liquidity visibility.',
+    },
+    trust_recovery: {
+      es: 'Recupera credibilidad para disminuir retiros preventivos.',
+      en: 'Restores credibility to reduce preventive withdrawals.',
+    },
+    pricing: {
+      es: 'Ajusta incentivos para sostener uso sin destruir margen.',
+      en: 'Rebalances incentives to sustain usage without margin damage.',
+    },
+  }
+
+  return {
+    rationale:
+      lang === 'es'
+        ? `La recomendación se prioriza por el contexto actual del run (${item.title}) y su sensibilidad a los indicadores de riesgo.`
+        : `This recommendation is prioritized based on current run conditions (${item.title}) and its risk sensitivity.`,
+    drivers,
+    whyNow: whyNowMap[category]?.[lang] || whyNowMap.risk_mitigation[lang],
+  }
+}
+
+function innovationRecommendationContext(
+  item: { idea: string; fit?: string; inspiration?: string; disruptiveness?: string },
+  run: RunRecord,
+  lang: Lang
+) {
+  const s = run.outputs?.single_run
+  const panic = Number(s?.panic_index_score || 0)
+  const promoRisk = Number(s?.promo_abuse_risk_proxy || 0)
+  const liquidity = Number(s?.liquidity_stress_proxy || 0)
+
+  const drivers: string[] = []
+  if (panic >= 60) drivers.push(lang === 'es' ? 'vulnerabilidad de comportamiento' : 'behavioral vulnerability')
+  if (liquidity >= 0.5) drivers.push(lang === 'es' ? 'tensión de liquidez' : 'liquidity tension')
+  if (promoRisk >= 0.2) drivers.push(lang === 'es' ? 'presión de promos' : 'promo pressure')
+  if (!drivers.length) drivers.push(lang === 'es' ? 'oportunidad de diferenciación' : 'differentiation opportunity')
+
+  return {
+    rationale:
+      lang === 'es'
+        ? `La idea "${item.idea}" busca crear una ventaja estructural, no sólo una respuesta táctica de corto plazo.`
+        : `The idea "${item.idea}" aims to build structural advantage, not just a short-term tactical response.`,
+    drivers,
+    impactGoal:
+      lang === 'es'
+        ? 'Bajar sensibilidad al pánico y aumentar resiliencia de uso.'
+        : 'Reduce panic sensitivity and improve usage resilience.',
+  }
 }
 
 function pct(v?: number) {
