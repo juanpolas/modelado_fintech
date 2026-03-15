@@ -8,6 +8,7 @@ from statistics import mean
 from typing import Any
 
 from .defaults import ACTION_SET
+from .funds_at_risk import build_funds_at_risk_breakdown
 from .llm import LLMClient, mock_action, render_template
 from .models import Archetype, SimulationConfig
 
@@ -157,6 +158,12 @@ class SimulationEngine:
             "timeline": timeline,
             "final_action_distribution": dict(final_actions),
         }
+        result["funds_at_risk_breakdown"] = build_funds_at_risk_breakdown(
+            result,
+            source="stored",
+            derived_from_v1=False,
+            confidence_level="high",
+        )
         return result
 
     def _panic_index(

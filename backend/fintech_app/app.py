@@ -19,6 +19,7 @@ from .signal_jobs import SignalBackgroundJobs
 from .simulation import SimulationEngine
 from .twitter_client import TwitterSignalClient
 from .reporting import build_run_report_pdf
+from .funds_at_risk import derive_funds_at_risk_from_run, get_stored_funds_at_risk
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
@@ -201,6 +202,47 @@ def create_app() -> Flask:
         if not dupe:
             return jsonify({"detail": "not found"}), 404
         return jsonify(dupe)
+
+    @app.get("/runs/<run_id>/funds-at-risk")
+    def run_funds_at_risk(run_id: str):
+        run = db.get_run(run_id)
+        if not run:
+            return jsonify({"detail": "not found"}), 404
+
+        mode = (request.args.get("mode") or "auto").strip().lower()
+        if mode not in {"stored", "derive", "auto"}:
+            return jsonify({"detail": "mode must be one of: stored, derive, auto"}), 400
+
+        stored = get_stored_funds_at_risk(run)
+        selected = None
+        selected_source = None
+
+        if mode == "stored":
+            if not stored:
+                return jsonify({"detail": "funds_at_risk_breakdown not stored for this run"}), 404
+            selected = stored
+            selected_source = "stored"
+        elif mode == "derive":
+            selected = derive_funds_at_risk_from_run(run)
+            selected_source = "derived"
+        else:  # auto
+            if stored:
+                selected = stored
+                selected_source = "stored"
+            else:
+                selected = derive_funds_at_risk_from_run(run)
+                selected_source = "derived"
+
+        return jsonify(
+            {
+                "run_id": run_id,
+                "mode": mode,
+                "source": selected_source,
+                "derived_from_v1": bool(selected.get("derived_from_v1", False)),
+                "confidence_level": selected.get("confidence_level", "medium"),
+                "funds_at_risk_breakdown": selected,
+            }
+        )
 
     @app.get("/runs/<run_id>/report-pdf")
     def run_report_pdf(run_id: str):
