@@ -57,6 +57,7 @@ class SimulationEngine:
     def _single_run(self, config: SimulationConfig, archetypes: list[Archetype], seed: int) -> dict[str, Any]:
         rng = random.Random(seed)
         agents = self._build_agents(config, archetypes, rng)
+        total_system_funds = float(sum(agent.current_state.get("balance", 0.0) for agent in agents))
 
         timeline = []
         archetype_action_breakdown: dict[str, Counter] = defaultdict(Counter)
@@ -140,7 +141,9 @@ class SimulationEngine:
             "seed": seed,
             "num_agents": len(agents),
             "num_steps": config.num_steps,
+            "estimated_total_system_funds": round(total_system_funds, 2),
             "estimated_migration_of_funds": round(cumulative_migration, 2),
+            "migration_vs_total_pct": round((cumulative_migration / total_system_funds) if total_system_funds > 0 else 0.0, 4),
             "retention_proxy": final["retention_proxy"],
             "churn_proxy": final["churn_proxy"],
             "promo_abuse_risk_proxy": final["promo_abuse_risk_proxy"],
@@ -257,7 +260,9 @@ class SimulationEngine:
             return [float(r[key]) for r in runs]
 
         metrics = [
+            "estimated_total_system_funds",
             "estimated_migration_of_funds",
+            "migration_vs_total_pct",
             "retention_proxy",
             "churn_proxy",
             "promo_abuse_risk_proxy",

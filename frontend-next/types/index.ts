@@ -49,7 +49,9 @@ export type RunRecord = {
   config: SimulationPayload
   outputs: {
     single_run: {
+      estimated_total_system_funds?: number
       estimated_migration_of_funds: number
+      migration_vs_total_pct?: number
       churn_proxy: number
       liquidity_stress_proxy: number
       promo_abuse_risk_proxy: number

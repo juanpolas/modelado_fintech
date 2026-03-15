@@ -119,7 +119,9 @@ def build_run_report_pdf(run: dict[str, Any], lang: str = "es", ai_summary: str 
 
     lines.append("")
     lines.append(_txt(lang, "2) KPIs principales", "2) Main KPIs"))
+    lines.append(f"- {_txt(lang, 'Fondos totales estimados', 'Estimated total funds')}: {_money(single.get('estimated_total_system_funds', 0))}")
     lines.append(f"- {_txt(lang, 'Migración de fondos', 'Migration of funds')}: {_money(single.get('estimated_migration_of_funds', 0))}")
+    lines.append(f"- {_txt(lang, '% migrado sobre total', '% migrated vs total')}: {_pct(single.get('migration_vs_total_pct', 0))}")
     lines.append(f"- {_txt(lang, 'Riesgo de churn', 'Churn risk')}: {_pct(single.get('churn_proxy', 0))}")
     lines.append(f"- {_txt(lang, 'Estrés de liquidez', 'Liquidity stress')}: {_pct(single.get('liquidity_stress_proxy', 0))}")
     lines.append(f"- {_txt(lang, 'Deterioro de confianza', 'Trust deterioration')}: {_pct(single.get('trust_deterioration_proxy', 0))}")

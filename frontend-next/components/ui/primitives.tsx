@@ -17,7 +17,7 @@ export function Button(
   return (
     <button
       className={cn(
-        'rounded-xl px-4 py-2 text-sm font-medium transition duration-200 disabled:opacity-50',
+        'rounded-xl px-3 py-2 text-sm font-medium transition duration-200 disabled:opacity-50 sm:px-4',
         variantClass,
         className
       )}
@@ -27,7 +27,7 @@ export function Button(
 }
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('glass-card hover-lift rounded-2xl p-4', className)} {...props} />
+  return <div className={cn('glass-card hover-lift rounded-2xl p-3 sm:p-4', className)} {...props} />
 }
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -78,8 +78,8 @@ export function Badge({ className, ...props }: React.HTMLAttributes<HTMLSpanElem
 export function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="mb-4">
-      <h2 className="text-xl font-semibold">{title}</h2>
-      {subtitle ? <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
+      <h2 className="text-lg font-semibold sm:text-xl">{title}</h2>
+      {subtitle ? <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">{subtitle}</p> : null}
     </div>
   )
 }

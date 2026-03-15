@@ -297,7 +297,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabKey>('new')
   const [dark, setDark] = useState(true)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const [lang, setLang] = useState<Lang>('es')
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -316,6 +316,7 @@ export default function Page() {
   const [editingArchetype, setEditingArchetype] = useState<Archetype | null>(null)
   const [selectedArchetypeId, setSelectedArchetypeId] = useState<string | null>(null)
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null)
+  const [excludedArchetypes, setExcludedArchetypes] = useState<Record<string, boolean>>({})
   const [futureText, setFutureText] = useState('')
   const [impactText, setImpactText] = useState('')
   const [panicOpen, setPanicOpen] = useState(false)
@@ -412,6 +413,18 @@ export default function Page() {
       setSelectedArchetypeId(archetypes[0].id)
     }
   }, [archetypes, selectedArchetypeId])
+
+  useEffect(() => {
+    if (!archetypes.length) return
+    // Keep exclusion map aligned with the currently available archetypes.
+    setExcludedArchetypes((prev) => {
+      const next: Record<string, boolean> = {}
+      for (const a of archetypes) {
+        if (prev[a.id]) next[a.id] = true
+      }
+      return next
+    })
+  }, [archetypes])
 
   useEffect(() => {
     if (!scenarios.length) return
@@ -908,6 +921,21 @@ export default function Page() {
     return level
   }
 
+  function toggleArchetypeInSimulation(archetypeId: string) {
+    setExcludedArchetypes((prev) => {
+      const willExclude = !prev[archetypeId]
+      setSim((old) => ({
+        ...old,
+        archetype_mix: {
+          ...old.archetype_mix,
+          // Excluded archetypes are forced to 0 so they do not participate in the run.
+          [archetypeId]: willExclude ? 0 : Number(old.archetype_mix[archetypeId] || 0),
+        },
+      }))
+      return { ...prev, [archetypeId]: willExclude }
+    })
+  }
+
   async function doLogin() {
     setError('')
     try {
@@ -1068,7 +1096,7 @@ export default function Page() {
     return (
       <div className="dashboard-bg flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-md p-6">
-          <h1 className="text-3xl font-bold">MiroFish AR Fintech Simulator</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">MiroFish AR Fintech Simulator</h1>
           <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t.secureAccess}</p>
           <div className="mt-6 space-y-3">
             <Input value={accessCode} onChange={(e) => setAccessCode(e.target.value)} placeholder={t.enterCode} />
@@ -1081,8 +1109,8 @@ export default function Page() {
   }
 
   return (
-    <div className="dashboard-bg min-h-screen p-4">
-      <div className="mx-auto flex max-w-[1600px] gap-4">
+    <div className="dashboard-bg min-h-screen p-2 sm:p-4">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-4 lg:flex-row">
         <aside
           className={`glass-card sticky top-4 hidden h-[calc(100vh-2rem)] flex-col p-4 transition-all duration-200 lg:flex ${
             sidebarCollapsed ? 'w-[86px]' : 'w-[270px]'
@@ -1147,14 +1175,15 @@ export default function Page() {
           <header className="glass-card rounded-2xl p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-semibold">{t.nav[tab]}</h2>
-                <p className="text-xs text-slate-400">{lang === 'es' ? 'Plataforma de inteligencia de comportamiento para equipos de estrategia.' : 'Behavior intelligence platform for strategy teams.'}</p>
+                <h2 className="text-xl font-semibold sm:text-2xl">{t.nav[tab]}</h2>
+                <p className="text-[11px] text-slate-400 sm:text-xs">{lang === 'es' ? 'Plataforma de inteligencia de comportamiento para equipos de estrategia.' : 'Behavior intelligence platform for strategy teams.'}</p>
               </div>
-              <div className="flex flex-wrap gap-2 lg:hidden">
+              <div className="w-full overflow-x-auto lg:hidden">
+                <div className="flex gap-2 pb-1">
                 {NAV_ITEMS.map((item) => {
                   const Icon = item.icon
                   return (
-                    <Button key={item.key} variant={tab === item.key ? 'default' : 'outline'} onClick={() => setTab(item.key)}>
+                    <Button key={item.key} className="shrink-0" variant={tab === item.key ? 'default' : 'outline'} onClick={() => setTab(item.key)}>
                       <span className="inline-flex items-center gap-2">
                         <Icon className="h-4 w-4" />
                         {t.nav[item.key]}
@@ -1162,8 +1191,9 @@ export default function Page() {
                     </Button>
                   )
                 })}
+                </div>
               </div>
-              <div className="grid min-w-[220px] grid-cols-2 gap-2 text-xs">
+              <div className="grid w-full grid-cols-2 gap-2 text-xs sm:w-auto sm:min-w-[220px]">
                 <Card className="p-3">
                   <p className="text-slate-400">{lang === 'es' ? 'Escenario' : 'Scenario'}</p>
                   <p className="font-medium">
@@ -1238,7 +1268,7 @@ export default function Page() {
                             <p className="font-medium">{stepMeta.title}</p>
                           </div>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400">{stepMeta.short}</p>
-                          <div className="pointer-events-none absolute left-2 right-2 top-full z-20 mt-2 rounded-lg border border-blue-500/20 bg-slate-950/95 p-2 text-[11px] text-slate-200 opacity-0 shadow-xl transition group-hover:opacity-100">
+                          <div className="pointer-events-none absolute left-2 right-2 top-full z-20 mt-2 rounded-lg border border-blue-500/20 bg-slate-950/95 p-2 text-[11px] text-slate-200 opacity-100 shadow-xl transition md:opacity-0 md:group-hover:opacity-100">
                             <p className="font-medium text-blue-300">{lang === 'es' ? 'Racional del paso' : 'Step rationale'}</p>
                             <p className="mt-1">{stepMeta.rationale}</p>
                           </div>
@@ -1492,13 +1522,34 @@ export default function Page() {
                       }
                     />
                     <div className="grid gap-4 lg:grid-cols-3">
-                      {archetypes.map((a) => (
-                        <Card key={a.id} className="space-y-2">
+                      {archetypes.map((a) => {
+                        const isExcluded = !!excludedArchetypes[a.id]
+                        return (
+                        <Card key={a.id} className={`space-y-2 ${isExcluded ? 'opacity-70' : ''}`}>
                           <div className="flex items-center justify-between">
                             <h4 className="font-semibold">{a.name}</h4>
-                            <Badge>{a.balance_bucket}</Badge>
+                            <div className="flex items-center gap-2">
+                              {isExcluded ? (
+                                <Badge className="border-red-500/30 bg-red-500/10 text-red-300">
+                                  {lang === 'es' ? 'Fuera de simulación' : 'Excluded'}
+                                </Badge>
+                              ) : null}
+                              <Badge>{a.balance_bucket}</Badge>
+                            </div>
                           </div>
                           <p className="text-sm text-slate-500 dark:text-slate-400">{a.description}</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-slate-400">
+                              {isExcluded
+                                ? (lang === 'es' ? 'Este arquetipo no participa en la corrida.' : 'This archetype is not participating in the run.')
+                                : (lang === 'es' ? 'Activo en simulación.' : 'Active in simulation.')}
+                            </p>
+                            <Button variant="outline" onClick={() => toggleArchetypeInSimulation(a.id)}>
+                              {isExcluded
+                                ? (lang === 'es' ? 'Incluir' : 'Include')
+                                : (lang === 'es' ? 'Excluir' : 'Exclude')}
+                            </Button>
+                          </div>
                           <div className="flex flex-wrap gap-1">
                             <Badge className={levelBadgeClass(a.trust_level)}>
                               {lang === 'es' ? 'confianza' : 'trust'} {qualLabel(a.trust_level)}
@@ -1518,6 +1569,7 @@ export default function Page() {
                             min={0}
                             max={100}
                             value={sim.archetype_mix[a.id] ?? 0}
+                            disabled={isExcluded}
                             onChange={(e) =>
                               setSim((prev) => ({
                                 ...prev,
@@ -1526,7 +1578,7 @@ export default function Page() {
                             }
                           />
                         </Card>
-                      ))}
+                      )})}
                     </div>
                     <div className="grid gap-4 lg:grid-cols-2">
                       <Card>
@@ -1659,6 +1711,14 @@ export default function Page() {
                   <section className="space-y-4">
                     {simStep === 6 ? (
                       <>
+                        <StepIntro
+                          title={lang === 'es' ? 'Objetivo del paso' : 'Step goal'}
+                          description={
+                            lang === 'es'
+                              ? 'Interpretar el riesgo total del sistema: fondos base, porción migrada y drivers conductuales.'
+                              : 'Interpret total system risk: baseline funds, migrated share, and behavioral drivers.'
+                          }
+                        />
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <SectionTitle title={t.simulationResults} subtitle={`${lang === 'es' ? 'ID corrida' : 'Run ID'}: ${latestRun.id}`} />
                           <Button variant="outline" onClick={() => downloadReportPdf(latestRun.id)} disabled={downloadingPdf}>
@@ -1667,7 +1727,7 @@ export default function Page() {
                               : (lang === 'es' ? 'Descargar Informe PDF' : 'Download PDF Report')}
                           </Button>
                         </div>
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                           <PanicMetricCard
                             lang={lang}
                             score={panicScore}
@@ -1675,7 +1735,27 @@ export default function Page() {
                             mainDriver={panicMainDriver}
                             onOpen={() => setPanicOpen(true)}
                           />
+                          <MetricCard
+                            icon={Landmark}
+                            label={lang === 'es' ? 'Fondos Totales (estimados)' : 'Total Funds (estimated)'}
+                            value={num(currentMetrics?.estimated_total_system_funds)}
+                            subtitle={
+                              lang === 'es'
+                                ? 'Base simulada al inicio (suma de balances de agentes)'
+                                : 'Simulated baseline at start (sum of agent balances)'
+                            }
+                          />
                           <MetricCard icon={Landmark} label={lang === 'es' ? 'Migración de Fondos' : 'Migration Funds'} value={num(currentMetrics?.estimated_migration_of_funds)} />
+                          <MetricCard
+                            icon={BarChart3}
+                            label={lang === 'es' ? '% Migrado sobre total' : '% Migrated vs total'}
+                            value={pct(currentMetrics?.migration_vs_total_pct)}
+                            subtitle={
+                              lang === 'es'
+                                ? 'Qué proporción del sistema terminó moviéndose'
+                                : 'Share of the system that ended up moving'
+                            }
+                          />
                           <MetricCard icon={Users} label={lang === 'es' ? 'Riesgo de Churn' : 'Churn Risk'} value={pct(currentMetrics?.churn_proxy)} />
                           <MetricCard icon={Shield} label={lang === 'es' ? 'Estrés de Liquidez' : 'Liquidity Stress'} value={pct(currentMetrics?.liquidity_stress_proxy)} />
                           <MetricCard icon={BarChart3} label={lang === 'es' ? 'Riesgo Promo' : 'Promo Abuse Risk'} value={pct(currentMetrics?.promo_abuse_risk_proxy)} />
@@ -1722,14 +1802,14 @@ export default function Page() {
                                 : 'Archetypes → actions → fund destinations. Thickness represents migrated volume.'
                             }
                           />
-                          <div className="h-[440px] w-full">
+                          <div className="h-[320px] w-full sm:h-[400px] lg:h-[440px]">
                             <ResponsiveContainer>
                               <Sankey
                                 data={sankeyData}
                                 nodePadding={20}
-                                margin={{ left: 20, right: 140, top: 20, bottom: 20 }}
-                                node={{ stroke: '#1f2937', strokeWidth: 1 }}
-                                link={{ stroke: 'rgba(99,102,241,0.35)' }}
+                                margin={{ left: 20, right: 70, top: 20, bottom: 20 }}
+                                node={{ stroke: '#0ea5e9', strokeWidth: 1, fill: '#38bdf8' }}
+                                link={{ stroke: 'rgba(56,189,248,0.6)' }}
                               >
                                 <Tooltip />
                               </Sankey>
@@ -2912,10 +2992,12 @@ function MetricCard({
   icon: Icon,
   label,
   value,
+  subtitle,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
   value: string
+  subtitle?: string
 }) {
   return (
     <Card>
@@ -2923,7 +3005,8 @@ function MetricCard({
         <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
         <Icon className="h-4 w-4 text-primary" />
       </div>
-      <p className="text-2xl font-semibold">{value}</p>
+      <p className="text-xl font-semibold sm:text-2xl">{value}</p>
+      {subtitle ? <p className="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">{subtitle}</p> : null}
       <div className="mt-3 flex gap-1">
         {[28, 46, 40, 62, 57, 71, 66].map((h, i) => (
           <div key={i} className="h-8 flex-1 rounded-full bg-primary/15">
@@ -2970,7 +3053,7 @@ function PanicMetricCard({
           </div>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-3xl font-bold leading-none">{score.toFixed(1)}</p>
+          <p className="text-2xl font-bold leading-none sm:text-3xl">{score.toFixed(1)}</p>
           <p className="mt-1 text-xs text-slate-400">/ 100</p>
         </div>
         <Badge className={`${severity.badge}`}>{label}</Badge>

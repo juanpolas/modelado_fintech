@@ -281,7 +281,7 @@ export function BehaviorContagionMap({
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_330px]">
-        <div className="relative h-[560px] rounded-2xl border border-border bg-slate-50/60 dark:bg-slate-900/30">
+        <div className="relative h-[420px] rounded-2xl border border-border bg-slate-50/60 dark:bg-slate-900/30 sm:h-[520px] lg:h-[560px]">
           <ReactFlowProvider>
             <ReactFlow
               nodes={nodes}
@@ -303,7 +303,7 @@ export function BehaviorContagionMap({
           </ReactFlowProvider>
 
           {hovered ? (
-            <div className="absolute left-4 top-4 w-72 rounded-xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
+            <div className="absolute left-4 top-4 w-[min(18rem,calc(100%-2rem))] rounded-xl border border-border bg-card/95 p-3 shadow-xl backdrop-blur">
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="font-semibold">{hovered.label}</h4>
                 <Badge className={STATE_STYLES[hovered.state].chip}>{stateLabel(hovered.state)}</Badge>
@@ -416,7 +416,7 @@ function Insight({
         {label}
       </div>
       <p className="font-medium">{value}</p>
-      <div className="mt-2 overflow-hidden rounded-lg border border-blue-500/20 bg-blue-500/5 p-2 text-xs opacity-0 transition-all duration-200 group-hover:opacity-100">
+      <div className="mt-2 overflow-hidden rounded-lg border border-blue-500/20 bg-blue-500/5 p-2 text-xs opacity-100 transition-all duration-200 md:opacity-0 md:group-hover:opacity-100">
         <p className="font-medium text-blue-700 dark:text-blue-300">{meaning}</p>
         <p className="mt-1 text-slate-600 dark:text-slate-300">{whyNow}</p>
       </div>
