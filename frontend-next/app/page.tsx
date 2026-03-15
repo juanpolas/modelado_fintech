@@ -123,7 +123,7 @@ export default function Page() {
   const [authorized, setAuthorized] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabKey>('new')
-  const [dark, setDark] = useState(false)
+  const [dark, setDark] = useState(true)
   const [lang, setLang] = useState<Lang>('es')
   const [error, setError] = useState('')
 
@@ -376,39 +376,83 @@ export default function Page() {
   }
 
   return (
-    <div className="dashboard-bg min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div>
-            <h1 className="text-2xl font-bold">MiroFish AR Fintech Simulator</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{t.appSubtitle}</p>
+    <div className="dashboard-bg min-h-screen p-4">
+      <div className="mx-auto flex max-w-[1600px] gap-4">
+        <aside className="glass-card sticky top-4 hidden h-[calc(100vh-2rem)] w-[270px] flex-col p-4 lg:flex">
+          <div className="mb-6">
+            <p className="text-xs uppercase tracking-[0.22em] text-slate-400">MiroFish AR</p>
+            <h1 className="mt-2 text-xl font-semibold">Fintech Intelligence</h1>
+            <p className="mt-1 text-xs text-slate-400">{t.appSubtitle}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="space-y-2">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon
+              const active = tab === item.key
               return (
-                <Button key={item.key} variant={tab === item.key ? 'default' : 'outline'} onClick={() => setTab(item.key)}>
-                  <span className="inline-flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
-                    {t.nav[item.key]}
-                  </span>
-                </Button>
+                <button
+                  key={item.key}
+                  onClick={() => setTab(item.key)}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition ${
+                    active ? 'bg-primary/20 text-white' : 'text-slate-300 hover:bg-white/5'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{t.nav[item.key]}</span>
+                </button>
               )
             })}
-            <Button variant="outline" onClick={() => setLang((v) => (v === 'es' ? 'en' : 'es'))}>{lang.toUpperCase()}</Button>
-            <Button variant="ghost" onClick={() => setDark((v) => !v)} title={dark ? t.light : t.dark}>
-              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-            <Button variant="danger" onClick={doLogout}>
+          </div>
+          <div className="mt-auto space-y-2">
+            <div className="flex gap-2">
+              <Button className="flex-1" variant="outline" onClick={() => setLang((v) => (v === 'es' ? 'en' : 'es'))}>
+                {lang.toUpperCase()}
+              </Button>
+              <Button className="flex-1" variant="outline" onClick={() => setDark((v) => !v)} title={dark ? t.light : t.dark}>
+                {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+            </div>
+            <Button className="w-full" variant="danger" onClick={doLogout}>
               <span className="inline-flex items-center gap-2">
                 <LogOut className="h-4 w-4" /> {t.logout}
               </span>
             </Button>
           </div>
-        </div>
-      </header>
+        </aside>
 
-      <main className="mx-auto max-w-7xl space-y-6 p-4">
+        <section className="min-w-0 flex-1 space-y-4">
+          <header className="glass-card rounded-2xl p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-semibold">{t.nav[tab]}</h2>
+                <p className="text-xs text-slate-400">{lang === 'es' ? 'Plataforma de inteligencia de comportamiento para equipos de estrategia.' : 'Behavior intelligence platform for strategy teams.'}</p>
+              </div>
+              <div className="flex flex-wrap gap-2 lg:hidden">
+                {NAV_ITEMS.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <Button key={item.key} variant={tab === item.key ? 'default' : 'outline'} onClick={() => setTab(item.key)}>
+                      <span className="inline-flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        {t.nav[item.key]}
+                      </span>
+                    </Button>
+                  )
+                })}
+              </div>
+              <div className="grid min-w-[220px] grid-cols-2 gap-2 text-xs">
+                <Card className="p-3">
+                  <p className="text-slate-400">{lang === 'es' ? 'Escenario' : 'Scenario'}</p>
+                  <p className="font-medium">{sim.scenario_name}</p>
+                </Card>
+                <Card className="p-3">
+                  <p className="text-slate-400">{lang === 'es' ? 'Último Run' : 'Latest Run'}</p>
+                  <p className="font-medium">{latestRun?.id || '-'}</p>
+                </Card>
+              </div>
+            </div>
+          </header>
+
+          <main className="space-y-6">
         {error ? <Card className="border-red-400 text-red-700 dark:text-red-300">{error}</Card> : null}
 
         <AnimatePresence mode="wait">
@@ -1005,6 +1049,8 @@ export default function Page() {
           </motion.aside>
         ) : null}
       </AnimatePresence>
+        </section>
+      </div>
     </div>
   )
 }
@@ -1101,6 +1147,13 @@ function MetricCard({
         <Icon className="h-4 w-4 text-primary" />
       </div>
       <p className="text-2xl font-semibold">{value}</p>
+      <div className="mt-3 flex gap-1">
+        {[28, 46, 40, 62, 57, 71, 66].map((h, i) => (
+          <div key={i} className="h-8 flex-1 rounded-full bg-primary/15">
+            <div className="w-full rounded-full bg-gradient-to-t from-primary/20 to-primary/70" style={{ height: `${h}%` }} />
+          </div>
+        ))}
+      </div>
     </Card>
   )
 }

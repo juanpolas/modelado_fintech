@@ -3,34 +3,66 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 20% 98%;
-  --foreground: 224 30% 18%;
-  --card: 0 0% 100%;
-  --muted: 215 16% 92%;
-  --primary: 220 70% 50%;
-  --border: 215 20% 85%;
+  --background: 222 26% 9%;
+  --foreground: 220 20% 96%;
+  --card: 223 23% 14%;
+  --muted: 222 17% 20%;
+  --primary: 214 95% 62%;
+  --border: 221 18% 24%;
+  --accent: 262 90% 66%;
+  --positive: 152 76% 44%;
+  --danger: 0 84% 62%;
 }
 
 .dark {
-  --background: 220 20% 9%;
-  --foreground: 220 15% 92%;
-  --card: 220 18% 14%;
-  --muted: 220 12% 20%;
-  --primary: 212 90% 60%;
-  --border: 220 15% 28%;
+  --background: 222 26% 9%;
+  --foreground: 220 20% 96%;
+  --card: 223 23% 14%;
+  --muted: 222 17% 20%;
+  --primary: 214 95% 62%;
+  --border: 221 18% 24%;
+  --accent: 262 90% 66%;
+  --positive: 152 76% 44%;
+  --danger: 0 84% 62%;
 }
 
 body {
   @apply bg-background text-foreground antialiased;
+  background-image:
+    radial-gradient(1200px 500px at 10% -20%, rgba(56, 132, 255, 0.25), transparent 45%),
+    radial-gradient(1000px 400px at 95% 0%, rgba(147, 51, 234, 0.2), transparent 50%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(2, 6, 23, 1));
 }
 
 .dashboard-bg {
-  background-image: radial-gradient(circle at 10% 20%, rgba(28, 100, 242, 0.08), transparent 35%),
-    radial-gradient(circle at 90% 0%, rgba(16, 185, 129, 0.08), transparent 40%);
+  background-image:
+    radial-gradient(circle at 8% 12%, rgba(59, 130, 246, 0.22), transparent 36%),
+    radial-gradient(circle at 86% 0%, rgba(124, 58, 237, 0.2), transparent 44%);
 }
 
 .contagion-pulse {
   animation: contagion-pulse 1.4s ease-in-out infinite;
+}
+
+.glass-card {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.62), rgba(15, 23, 42, 0.74));
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow:
+    0 14px 36px rgba(2, 6, 23, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(14px);
+}
+
+.hover-lift {
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  border-color: rgba(96, 165, 250, 0.45);
+  box-shadow:
+    0 18px 42px rgba(2, 6, 23, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 @keyframes contagion-pulse {

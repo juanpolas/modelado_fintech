@@ -12,6 +12,9 @@ const config: Config = {
         muted: 'hsl(var(--muted))',
         primary: 'hsl(var(--primary))',
         border: 'hsl(var(--border))',
+        accent: 'hsl(var(--accent))',
+        positive: 'hsl(var(--positive))',
+        danger: 'hsl(var(--danger))',
       },
       borderRadius: {
         xl: '1rem',
