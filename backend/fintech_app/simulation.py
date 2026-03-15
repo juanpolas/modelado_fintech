@@ -133,6 +133,7 @@ class SimulationEngine:
             )
 
         final = timeline[-1]
+        panic = self._panic_index(config, final_actions, archetype_action_breakdown, len(agents), final)
         result = {
             "run_at": datetime.now(timezone.utc).isoformat(),
             "seed": seed,
@@ -146,6 +147,10 @@ class SimulationEngine:
             "liquidity_stress_proxy": final["liquidity_stress_proxy"],
             "crypto_migration_proxy": round(cumulative_crypto / max(cumulative_migration + 1, 1), 4),
             "loan_demand_stress_proxy": final["loan_demand_stress_proxy"],
+            "panic_index_score": panic["score"],
+            "panic_index_label": panic["label"],
+            "panic_index_components": panic["components"],
+            "panic_index_main_driver": panic["main_driver"],
             "archetype_level_breakdown": {
                 k: dict(v) for k, v in sorted(archetype_action_breakdown.items())
             },
@@ -153,6 +158,89 @@ class SimulationEngine:
             "final_action_distribution": dict(final_actions),
         }
         return result
+
+    def _panic_index(
+        self,
+        config: SimulationConfig,
+        final_actions: Counter,
+        archetype_action_breakdown: dict[str, Counter],
+        num_agents: int,
+        final: dict[str, Any],
+    ) -> dict[str, Any]:
+        total = max(1, num_agents)
+        withdraw_fast_share = final_actions.get("withdraw_fast", 0) / total
+        move_funds_share = final_actions.get("move_funds", 0) / total
+        crypto_flight_score = min(
+            1.0,
+            final_actions.get("buy_crypto", 0) / total * 0.7
+            + float(final.get("crypto_migration_proxy", 0.0)) * 0.3,
+        )
+        rumor_activation_score = min(
+            1.0,
+            score(config.country_context.get("political_noise", "medium")) * 0.6
+            + score(config.country_context.get("social_panic_level", "medium")) * 0.4,
+        )
+        trust_deterioration = min(1.0, max(0.0, float(final.get("trust_deterioration_proxy", 0.0))))
+        liquidity_stress = min(1.0, max(0.0, float(final.get("liquidity_stress_proxy", 0.0))))
+
+        components = {
+            "trust_deterioration": round(trust_deterioration, 4),
+            "liquidity_stress": round(liquidity_stress, 4),
+            "withdraw_fast_share": round(withdraw_fast_share, 4),
+            "move_funds_share": round(move_funds_share, 4),
+            "rumor_activation_score": round(rumor_activation_score, 4),
+            "crypto_flight_score": round(crypto_flight_score, 4),
+        }
+        weights = {
+            "trust_deterioration": 0.30,
+            "liquidity_stress": 0.25,
+            "withdraw_fast_share": 0.20,
+            "move_funds_share": 0.10,
+            "rumor_activation_score": 0.10,
+            "crypto_flight_score": 0.05,
+        }
+        base_score = sum(components[k] * w for k, w in weights.items())
+
+        critical_ids = {
+            "low_trust_fast_withdrawer",
+            "panic_rumormonger",
+            "corralito_survivor",
+            "classic_dolarizador",
+        }
+        critical_actions = 0
+        total_actions = 0
+        for archetype_id, actions in archetype_action_breakdown.items():
+            total_actions += sum(actions.values())
+            if archetype_id in critical_ids:
+                critical_actions += sum(actions.values())
+        critical_activation = (critical_actions / max(1, total_actions))
+        archetype_multiplier = min(1.15, 1.0 + critical_activation * 0.10)
+
+        weighted_contrib = {k: components[k] * weights[k] for k in components}
+        main_driver = max(weighted_contrib.items(), key=lambda kv: kv[1])[0]
+
+        score_0_1 = min(1.0, max(0.0, base_score * archetype_multiplier))
+        score_0_100 = round(score_0_1 * 100, 1)
+        if score_0_100 <= 25:
+            label = "Normal"
+        elif score_0_100 <= 50:
+            label = "Alert"
+        elif score_0_100 <= 75:
+            label = "Stressed"
+        else:
+            label = "Panic"
+
+        return {
+            "score": score_0_100,
+            "label": label,
+            "main_driver": main_driver,
+            "components": {
+                **components,
+                "archetype_multiplier": round(archetype_multiplier, 4),
+                "critical_archetype_activation": round(critical_activation, 4),
+                "weighted_contribution": {k: round(v, 4) for k, v in weighted_contrib.items()},
+            },
+        }
 
     def _aggregate_runs(self, runs: list[dict[str, Any]]) -> dict[str, Any]:
         if len(runs) == 1:

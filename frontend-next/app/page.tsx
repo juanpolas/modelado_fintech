@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   FlaskConical,
   Landmark,
@@ -24,6 +25,7 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
+  Sankey,
   Scatter,
   ScatterChart,
   Tooltip,
@@ -38,13 +40,20 @@ import { Badge, Button, Card, Input, SectionTitle, Select, TextArea } from '@/co
 import { BehaviorContagionMap } from '@/components/dashboard/behavior-contagion-map'
 import { RealWorldSignals } from '@/components/dashboard/real-world-signals'
 
-type TabKey = 'new' | 'signals' | 'archetypes' | 'scenarios' | 'runs' | 'settings'
+type TabKey = 'new' | 'signals' | 'archetypes' | 'contexts' | 'scenarios' | 'runs' | 'settings'
 type Lang = 'es' | 'en'
+type ContextProfile = {
+  id: string
+  title: string
+  description: string
+  country_context: Record<string, QualLevel>
+}
 
 const NAV_ITEMS: Array<{ key: TabKey; icon: React.ComponentType<{ className?: string }> }> = [
   { key: 'new', icon: FlaskConical },
   { key: 'signals', icon: Activity },
   { key: 'archetypes', icon: Users },
+  { key: 'contexts', icon: Shield },
   { key: 'scenarios', icon: Landmark },
   { key: 'runs', icon: BarChart3 },
   { key: 'settings', icon: Settings },
@@ -64,6 +73,7 @@ const I18N = {
       new: 'Nueva Simulación',
       signals: 'Señales del Mundo Real',
       archetypes: 'Gestor de Arquetipos',
+      contexts: 'Contextos',
       scenarios: 'Gestor de Escenarios',
       runs: 'Ejecuciones Previas',
       settings: 'Configuración',
@@ -88,6 +98,7 @@ const I18N = {
       new: 'New Simulation',
       signals: 'Real-World Signals',
       archetypes: 'Archetype Manager',
+      contexts: 'Contexts',
       scenarios: 'Scenario Manager',
       runs: 'Past Runs',
       settings: 'Settings',
@@ -102,6 +113,101 @@ const I18N = {
 } as const
 
 const COLORS = ['#ef4444', '#3b82f6', '#f59e0b', '#22c55e', '#8b5cf6', '#06b6d4', '#fb7185', '#64748b']
+
+const DEFAULT_ARCHETYPE_IDS = new Set([
+  'rate_seeker',
+  'promo_hunter',
+  'anti_bank_user',
+  'conservative_salaried',
+  'crypto_opportunist',
+  'inflation_defensive_saver',
+  'low_trust_fast_withdrawer',
+  'everyday_transactional',
+])
+
+const SCENARIO_ES_BY_ID: Record<string, { name: string; description: string }> = {
+  wallet_yield_increase: {
+    name: 'suba de rendimiento en billetera',
+    description: 'Línea base por defecto para suba de rendimiento en billetera.',
+  },
+  competitor_yield_increase: {
+    name: 'suba de rendimiento de competidor',
+    description: 'Línea base por defecto para suba de rendimiento de competidor.',
+  },
+  cashback_campaign_launch: {
+    name: 'lanzamiento de campaña de cashback',
+    description: 'Línea base por defecto para lanzamiento de campaña de cashback.',
+  },
+  negative_rumor: {
+    name: 'rumor negativo en redes sociales',
+    description: 'Línea base por defecto para rumor negativo en redes sociales.',
+  },
+  fx_devaluation_shock: {
+    name: 'shock de devaluación / movimiento FX',
+    description: 'Línea base por defecto para shock de devaluación / movimiento FX.',
+  },
+  stricter_kyc: {
+    name: 'mayor fricción KYC',
+    description: 'Línea base por defecto para mayor fricción KYC.',
+  },
+  crypto_drawdown: {
+    name: 'evento de caída cripto',
+    description: 'Línea base por defecto para evento de caída cripto.',
+  },
+  app_instability: {
+    name: 'incidente de inestabilidad de app',
+    description: 'Línea base por defecto para incidente de inestabilidad de app.',
+  },
+  trust_crisis: {
+    name: 'crisis de confianza',
+    description: 'Línea base por defecto para crisis de confianza.',
+  },
+  regulatory_tightening: {
+    name: 'endurecimiento regulatorio',
+    description: 'Línea base por defecto para endurecimiento regulatorio.',
+  },
+  loan_demand_stress: {
+    name: 'evento de estrés de demanda de crédito',
+    description: 'Línea base por defecto para evento de estrés de demanda de crédito.',
+  },
+  liquidity_panic: {
+    name: 'evento de pánico de liquidez',
+    description: 'Línea base por defecto para evento de pánico de liquidez.',
+  },
+}
+
+const SCENARIO_EN_NAME_BY_ID: Record<string, string> = {
+  wallet_yield_increase: 'wallet yield increase',
+  competitor_yield_increase: 'competitor yield increase',
+  cashback_campaign_launch: 'cashback campaign launch',
+  negative_rumor: 'negative rumor on social media',
+  fx_devaluation_shock: 'sudden FX move / devaluation shock',
+  stricter_kyc: 'stricter KYC friction',
+  crypto_drawdown: 'crypto drawdown event',
+  app_instability: 'app instability incident',
+  trust_crisis: 'trust crisis',
+  regulatory_tightening: 'regulatory tightening',
+  loan_demand_stress: 'loan demand stress event',
+  liquidity_panic: 'liquidity panic event',
+}
+
+const ARCHETYPE_PROP_META_ES: Record<string, string> = {
+  trust_level: 'Nivel de confianza inicial del segmento.',
+  liquidity_preference: 'Preferencia por liquidez inmediata ante estrés.',
+  crypto_affinity: 'Tendencia a migrar hacia cripto como cobertura.',
+  rumor_sensitivity: 'Qué tanto reacciona a rumores o ruido social.',
+  macro_anxiety: 'Ansiedad frente a inflación, dólar y riesgo país.',
+  risk_aversion: 'Aversión a tomar riesgo financiero.',
+}
+
+const ARCHETYPE_PROP_META_EN: Record<string, string> = {
+  trust_level: 'Baseline trust level of this segment.',
+  liquidity_preference: 'Preference for immediate liquidity under stress.',
+  crypto_affinity: 'Tendency to move into crypto as hedge.',
+  rumor_sensitivity: 'Sensitivity to rumors and social noise.',
+  macro_anxiety: 'Anxiety around inflation, FX and country risk.',
+  risk_aversion: 'Aversion to financial risk taking.',
+}
 
 const emptyPayload = (): SimulationPayload => ({
   scenario_id: null,
@@ -135,10 +241,15 @@ export default function Page() {
   const [sim, setSim] = useState<SimulationPayload>(emptyPayload())
   const [simStep, setSimStep] = useState(1)
   const [settings, setSettings] = useState<Record<string, unknown>>({ llm_provider: 'mock' })
+  const [contextProfiles, setContextProfiles] = useState<ContextProfile[]>([])
+  const [selectedContextId, setSelectedContextId] = useState<string | null>(null)
 
   const [editingArchetype, setEditingArchetype] = useState<Archetype | null>(null)
+  const [selectedArchetypeId, setSelectedArchetypeId] = useState<string | null>(null)
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null)
   const [futureText, setFutureText] = useState('')
   const [impactText, setImpactText] = useState('')
+  const [panicOpen, setPanicOpen] = useState(false)
   const t = I18N[lang]
 
   useEffect(() => {
@@ -167,7 +278,22 @@ export default function Page() {
     setScenarios(s)
     setRuns(r)
     setSettings(st)
+    const storedProfiles = Array.isArray(st.context_profiles) ? (st.context_profiles as ContextProfile[]) : []
+    const baseProfile: ContextProfile = {
+      id: 'ctx_base_default',
+      title: lang === 'es' ? 'Contexto Base Argentina' : 'Argentina Base Context',
+      description:
+        lang === 'es'
+          ? 'Perfil base editable para simulaciones.'
+          : 'Editable baseline profile for simulations.',
+      country_context: copy(DEFAULT_COUNTRY_CONTEXT),
+    }
+    const mergedProfiles = storedProfiles.length ? storedProfiles : [baseProfile]
+    setContextProfiles(mergedProfiles)
+    if (!selectedContextId && mergedProfiles[0]) setSelectedContextId(mergedProfiles[0].id)
     if (!latestRun && r[0]) setLatestRun(r[0])
+    if (!selectedArchetypeId && a[0]) setSelectedArchetypeId(a[0].id)
+    if (!selectedScenarioId && s[0]) setSelectedScenarioId(s[0].id)
 
     setSim((prev) => {
       const next = copy(prev)
@@ -178,6 +304,27 @@ export default function Page() {
       return next
     })
   }
+
+  useEffect(() => {
+    if (!archetypes.length) return
+    if (!selectedArchetypeId || !archetypes.some((a) => a.id === selectedArchetypeId)) {
+      setSelectedArchetypeId(archetypes[0].id)
+    }
+  }, [archetypes, selectedArchetypeId])
+
+  useEffect(() => {
+    if (!scenarios.length) return
+    if (!selectedScenarioId || !scenarios.some((s) => s.id === selectedScenarioId)) {
+      setSelectedScenarioId(scenarios[0].id)
+    }
+  }, [scenarios, selectedScenarioId])
+
+  useEffect(() => {
+    if (!contextProfiles.length) return
+    if (!selectedContextId || !contextProfiles.some((c) => c.id === selectedContextId)) {
+      setSelectedContextId(contextProfiles[0].id)
+    }
+  }, [contextProfiles, selectedContextId])
 
   const mixTotal = useMemo(
     () => Object.values(sim.archetype_mix || {}).reduce((acc, n) => acc + Number(n || 0), 0),
@@ -224,6 +371,80 @@ export default function Page() {
     name: key,
     value: currentMetrics?.final_action_distribution?.[key] || 0,
   })).filter((x) => x.value > 0)
+  const sankeyData = useMemo(() => buildSankeyData(currentMetrics), [currentMetrics])
+  const panicScore = Number(currentMetrics?.panic_index_score || 0)
+  const panicLabel = currentMetrics?.panic_index_label || 'Normal'
+  const panicMainDriver = currentMetrics?.panic_index_main_driver || 'trust_deterioration'
+
+  const selectedArchetype = useMemo(
+    () => archetypes.find((a) => a.id === selectedArchetypeId) || archetypes[0] || null,
+    [archetypes, selectedArchetypeId]
+  )
+  const otherArchetypes = useMemo(
+    () => archetypes.filter((a) => a.id !== selectedArchetype?.id),
+    [archetypes, selectedArchetype]
+  )
+  const selectedScenario = useMemo(
+    () => scenarios.find((s) => s.id === selectedScenarioId) || scenarios[0] || null,
+    [scenarios, selectedScenarioId]
+  )
+  const otherScenarios = useMemo(
+    () => scenarios.filter((s) => s.id !== selectedScenario?.id),
+    [scenarios, selectedScenario]
+  )
+  const selectedContext = useMemo(
+    () => contextProfiles.find((c) => c.id === selectedContextId) || contextProfiles[0] || null,
+    [contextProfiles, selectedContextId]
+  )
+  const otherContexts = useMemo(
+    () => contextProfiles.filter((c) => c.id !== selectedContext?.id),
+    [contextProfiles, selectedContext]
+  )
+
+  function localizeScenarioNameById(id: string, fallback: string) {
+    if (lang !== 'es') return fallback
+    return SCENARIO_ES_BY_ID[id]?.name || fallback
+  }
+
+  function localizeScenarioDescriptionById(id: string, fallback: string) {
+    if (lang !== 'es') return fallback
+    return SCENARIO_ES_BY_ID[id]?.description || fallback
+  }
+
+  function localizeScenarioNameLoose(name: string) {
+    if (lang !== 'es') return name
+    if (SCENARIO_ES_BY_ID[name]) return SCENARIO_ES_BY_ID[name].name
+    const byEnglish = Object.entries(SCENARIO_EN_NAME_BY_ID).find(([, en]) => en.toLowerCase() === name.toLowerCase())
+    if (byEnglish) return SCENARIO_ES_BY_ID[byEnglish[0]]?.name || name
+    return name
+  }
+
+  function getArchetypeOrigin(a: Archetype): 'default' | 'x' | 'custom' {
+    if (DEFAULT_ARCHETYPE_IDS.has(a.id)) return 'default'
+    const blob = `${a.id} ${a.name} ${a.description}`.toLowerCase()
+    if (/(x\.com|twitter|tweet|señal|signal|narrativ|tendencia|trend)/i.test(blob)) return 'x'
+    return 'custom'
+  }
+
+  function getScenarioOrigin(s: Scenario): 'default' | 'custom' {
+    if (SCENARIO_ES_BY_ID[s.id]) return 'default'
+    return 'custom'
+  }
+
+  function saveContextProfiles(nextProfiles: ContextProfile[]) {
+    setContextProfiles(nextProfiles)
+    const nextSettings = { ...settings, context_profiles: nextProfiles }
+    setSettings(nextSettings)
+    void api.saveSettings(nextSettings).catch((e) => setError((e as Error).message))
+  }
+
+  function levelBadgeClass(level?: QualLevel) {
+    if (level === 'very_high') return 'border-red-500/40 bg-red-500/15 text-red-300'
+    if (level === 'high') return 'border-orange-500/40 bg-orange-500/15 text-orange-300'
+    if (level === 'medium') return 'border-amber-500/40 bg-amber-500/15 text-amber-200'
+    if (level === 'low') return 'border-blue-500/40 bg-blue-500/15 text-blue-300'
+    return 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+  }
 
   async function doLogin() {
     setError('')
@@ -246,7 +467,11 @@ export default function Page() {
   async function runSimulation() {
     setError('')
     if (Math.abs(mixTotal - 100) > 0.01) {
-      setError(`Archetype mix must total 100 (current: ${mixTotal.toFixed(2)})`)
+      setError(
+        lang === 'es'
+          ? `La mezcla de arquetipos debe sumar 100 (actual: ${mixTotal.toFixed(2)})`
+          : `Archetype mix must total 100 (current: ${mixTotal.toFixed(2)})`
+      )
       return
     }
 
@@ -442,7 +667,11 @@ export default function Page() {
               <div className="grid min-w-[220px] grid-cols-2 gap-2 text-xs">
                 <Card className="p-3">
                   <p className="text-slate-400">{lang === 'es' ? 'Escenario' : 'Scenario'}</p>
-                  <p className="font-medium">{sim.scenario_name}</p>
+                  <p className="font-medium">
+                    {sim.scenario_id
+                      ? localizeScenarioNameById(sim.scenario_id, sim.scenario_name)
+                      : localizeScenarioNameLoose(sim.scenario_name)}
+                  </p>
                 </Card>
                 <Card className="p-3">
                   <p className="text-slate-400">{lang === 'es' ? 'Último Run' : 'Latest Run'}</p>
@@ -500,23 +729,73 @@ export default function Page() {
                 </Card>
 
                 {simStep === 1 ? (
-                  <RealWorldSignals
-                    lang={lang}
-                    initialCountryContext={sim.country_context}
-                    initialCompanyContext={sim.company_context}
-                    onError={setError}
-                    onApply={(country, company) => {
-                      setSim((prev) => ({
-                        ...prev,
-                        country_context: { ...prev.country_context, ...country },
-                        company_context: { ...prev.company_context, ...company },
-                      }))
-                    }}
-                  />
+                  <>
+                    <StepIntro
+                      title={lang === 'es' ? 'Objetivo del paso' : 'Step goal'}
+                      description={
+                        lang === 'es'
+                          ? 'Cargar automáticamente señales en vivo (X + noticias), fusionarlas y decidir qué señales aplicar antes de continuar.'
+                          : 'Auto-load live signals (X + news), fuse them, and decide which signals to apply before continuing.'
+                      }
+                    />
+                    <RealWorldSignals
+                      lang={lang}
+                      autoLoadOnMount
+                      syncOnChange
+                      initialCountryContext={sim.country_context}
+                      initialCompanyContext={sim.company_context}
+                      onError={setError}
+                      onApply={(country, company) => {
+                        setSim((prev) => ({
+                          ...prev,
+                          country_context: { ...prev.country_context, ...country },
+                          company_context: { ...prev.company_context, ...company },
+                        }))
+                      }}
+                    />
+                  </>
                 ) : null}
 
                 {simStep === 2 ? (
-                  <div className="grid gap-4 lg:grid-cols-3">
+                  <div className="space-y-4">
+                    <StepIntro
+                      title={lang === 'es' ? 'Objetivo del paso' : 'Step goal'}
+                      description={
+                        lang === 'es'
+                          ? 'Elegir un contexto guardado y revisar cómo cambia presión macro, confianza/pánico y presión conductual.'
+                          : 'Choose a saved context and review how macro pressure, trust/panic and behavior pressure change.'
+                      }
+                    />
+                    <Card>
+                      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                        <div>
+                          <label className="mb-1 block text-xs text-slate-400">{lang === 'es' ? 'Contexto seleccionado' : 'Selected context'}</label>
+                          <Select
+                            value={selectedContext?.id || ''}
+                            onChange={(e) => {
+                              const id = e.target.value
+                              setSelectedContextId(id)
+                              const ctx = contextProfiles.find((c) => c.id === id)
+                              if (!ctx) return
+                              setSim((prev) => ({ ...prev, country_context: copy(ctx.country_context) }))
+                            }}
+                          >
+                            {contextProfiles.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.title}
+                              </option>
+                            ))}
+                          </Select>
+                        </div>
+                        <Button
+                          variant="outline"
+                          onClick={() => setTab('contexts')}
+                        >
+                          {lang === 'es' ? 'Editar contextos' : 'Edit contexts'}
+                        </Button>
+                      </div>
+                    </Card>
+                    <div className="grid gap-4 lg:grid-cols-3">
                     <ContextClusterCard
                       title={lang === 'es' ? 'Presión Macro' : 'Macro Pressure'}
                       fields={['inflation_expectation', 'usd_volatility', 'country_risk_pressure']}
@@ -535,17 +814,20 @@ export default function Page() {
                       data={sim.country_context}
                       lang={lang}
                     />
-                    <div className="lg:col-span-3">
-                      <ContextEditor
-                        title={lang === 'es' ? 'Editar Contexto Argentina (Avanzado)' : 'Edit Argentina Context (Advanced)'}
-                        data={sim.country_context}
-                        onChange={(k, v) => setSim((p) => ({ ...p, country_context: { ...p.country_context, [k]: v } }))}
-                      />
                     </div>
                   </div>
                 ) : null}
 
                 {simStep === 3 ? (
+                  <div className="space-y-4">
+                    <StepIntro
+                      title={lang === 'es' ? 'Objetivo del paso' : 'Step goal'}
+                      description={
+                        lang === 'es'
+                          ? 'Configurar palancas de compañía que pueden amortiguar o amplificar el comportamiento de usuarios.'
+                          : 'Configure company levers that can dampen or amplify user behavior.'
+                      }
+                    />
                   <div className="grid gap-4 lg:grid-cols-2">
                     <ContextEditor
                       title={lang === 'es' ? 'Retención y Yield' : 'Retention & Yield'}
@@ -565,10 +847,19 @@ export default function Page() {
                       />
                     </div>
                   </div>
+                  </div>
                 ) : null}
 
                 {simStep === 4 ? (
                   <div className="space-y-4">
+                    <StepIntro
+                      title={lang === 'es' ? 'Objetivo del paso' : 'Step goal'}
+                      description={
+                        lang === 'es'
+                          ? 'Definir qué segmentos de usuarios participan y con qué peso relativo.'
+                          : 'Define which user segments participate and their relative weights.'
+                      }
+                    />
                     <div className="grid gap-4 lg:grid-cols-3">
                       {archetypes.map((a) => (
                         <Card key={a.id} className="space-y-2">
@@ -578,10 +869,10 @@ export default function Page() {
                           </div>
                           <p className="text-sm text-slate-500 dark:text-slate-400">{a.description}</p>
                           <div className="flex flex-wrap gap-1">
-                            <Badge>trust {a.trust_level}</Badge>
-                            <Badge>liq {a.liquidity_preference}</Badge>
-                            <Badge>crypto {a.crypto_affinity}</Badge>
-                            <Badge>rumor {a.rumor_sensitivity}</Badge>
+                            <Badge className={levelBadgeClass(a.trust_level)}>trust {a.trust_level}</Badge>
+                            <Badge className={levelBadgeClass(a.liquidity_preference)}>liq {a.liquidity_preference}</Badge>
+                            <Badge className={levelBadgeClass(a.crypto_affinity)}>crypto {a.crypto_affinity}</Badge>
+                            <Badge className={levelBadgeClass(a.rumor_sensitivity)}>rumor {a.rumor_sensitivity}</Badge>
                           </div>
                           <Input
                             type="number"
@@ -626,15 +917,48 @@ export default function Page() {
 
                 {simStep === 5 ? (
                   <Card className="space-y-4">
+                    <StepIntro
+                      title={lang === 'es' ? 'Objetivo del paso' : 'Step goal'}
+                      description={
+                        lang === 'es'
+                          ? 'Validar parámetros finales y lanzar la simulación con claridad de alcance.'
+                          : 'Validate final parameters and run the simulation with clear scope.'
+                      }
+                    />
                     <SectionTitle title={lang === 'es' ? 'Revisión Previa al Run' : 'Pre-Run Review'} subtitle={lang === 'es' ? 'Validá el contexto antes de simular.' : 'Validate context before simulation.'} />
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                      <Field label={lang === 'es' ? 'Agentes' : 'Agents'} value={sim.num_agents} onChange={(v) => setSim((p) => ({ ...p, num_agents: Number(v) }))} />
-                      <Field label={lang === 'es' ? 'Pasos' : 'Steps'} value={sim.num_steps} onChange={(v) => setSim((p) => ({ ...p, num_steps: Number(v) }))} />
-                      <Field label="Seed" value={sim.seed} onChange={(v) => setSim((p) => ({ ...p, seed: Number(v) }))} />
-                      <Field label="Monte Carlo" value={sim.monte_carlo_runs} onChange={(v) => setSim((p) => ({ ...p, monte_carlo_runs: Number(v) }))} />
+                      <Field
+                        label={lang === 'es' ? 'Agentes' : 'Agents'}
+                        hint={lang === 'es' ? 'Cantidad de usuarios sintéticos a simular.' : 'Number of synthetic users to simulate.'}
+                        value={sim.num_agents}
+                        onChange={(v) => setSim((p) => ({ ...p, num_agents: Number(v) }))}
+                      />
+                      <Field
+                        label={lang === 'es' ? 'Pasos' : 'Steps'}
+                        hint={lang === 'es' ? 'Horizonte temporal de la simulación.' : 'Simulation time horizon.'}
+                        value={sim.num_steps}
+                        onChange={(v) => setSim((p) => ({ ...p, num_steps: Number(v) }))}
+                      />
+                      <Field
+                        label="Seed"
+                        hint={lang === 'es' ? 'Controla reproducibilidad del escenario.' : 'Controls scenario reproducibility.'}
+                        value={sim.seed}
+                        onChange={(v) => setSim((p) => ({ ...p, seed: Number(v) }))}
+                      />
+                      <Field
+                        label="Monte Carlo"
+                        hint={lang === 'es' ? 'Cantidad de corridas para estimar rangos.' : 'Number of runs to estimate ranges.'}
+                        value={sim.monte_carlo_runs}
+                        onChange={(v) => setSim((p) => ({ ...p, monte_carlo_runs: Number(v) }))}
+                      />
                     </div>
                     <div className="flex items-center justify-between">
-                      <Badge>{lang === 'es' ? 'Escenario' : 'Scenario'}: {sim.scenario_name}</Badge>
+                      <Badge>
+                        {lang === 'es' ? 'Escenario' : 'Scenario'}:{' '}
+                        {sim.scenario_id
+                          ? localizeScenarioNameById(sim.scenario_id, sim.scenario_name)
+                          : localizeScenarioNameLoose(sim.scenario_name)}
+                      </Badge>
                       <Button onClick={runSimulation}>
                         <span className="inline-flex items-center gap-2">
                           <Play className="h-4 w-4" /> {t.runSimulation}
@@ -649,7 +973,14 @@ export default function Page() {
                     {simStep === 6 ? (
                       <>
                         <SectionTitle title={t.simulationResults} subtitle={`Run ID: ${latestRun.id}`} />
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                          <PanicMetricCard
+                            lang={lang}
+                            score={panicScore}
+                            label={panicLabel}
+                            mainDriver={panicMainDriver}
+                            onOpen={() => setPanicOpen(true)}
+                          />
                           <MetricCard icon={Landmark} label={lang === 'es' ? 'Migración de Fondos' : 'Migration Funds'} value={num(currentMetrics?.estimated_migration_of_funds)} />
                           <MetricCard icon={Users} label={lang === 'es' ? 'Riesgo de Churn' : 'Churn Risk'} value={pct(currentMetrics?.churn_proxy)} />
                           <MetricCard icon={Shield} label={lang === 'es' ? 'Estrés de Liquidez' : 'Liquidity Stress'} value={pct(currentMetrics?.liquidity_stress_proxy)} />
@@ -688,6 +1019,29 @@ export default function Page() {
                             </div>
                           </Card>
                         </div>
+                        <Card>
+                          <SectionTitle
+                            title={lang === 'es' ? 'Migración de Fondos (Sankey)' : 'Fund Migration (Sankey)'}
+                            subtitle={
+                              lang === 'es'
+                                ? 'Arquetipos → acciones → destino de fondos. El grosor representa volumen migrado.'
+                                : 'Archetypes → actions → fund destinations. Thickness represents migrated volume.'
+                            }
+                          />
+                          <div className="h-[440px] w-full">
+                            <ResponsiveContainer>
+                              <Sankey
+                                data={sankeyData}
+                                nodePadding={20}
+                                margin={{ left: 20, right: 140, top: 20, bottom: 20 }}
+                                node={{ stroke: '#1f2937', strokeWidth: 1 }}
+                                link={{ stroke: 'rgba(99,102,241,0.35)' }}
+                              >
+                                <Tooltip />
+                              </Sankey>
+                            </ResponsiveContainer>
+                          </div>
+                        </Card>
                       </>
                     ) : null}
 
@@ -756,7 +1110,11 @@ export default function Page() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <SectionTitle
                     title={lang === 'es' ? 'Gestor de Arquetipos' : 'Archetype Manager'}
-                    subtitle={lang === 'es' ? 'Tarjetas visuales y perfiles conductuales editables.' : 'Visual cards + editable behavioral profiles.'}
+                    subtitle={
+                      lang === 'es'
+                        ? 'Vista enfocada: 1 perfil principal con detalle + lista lateral de segmentos.'
+                        : 'Focused view: 1 primary profile with detail + side list of segments.'
+                    }
                   />
                   <div className="flex gap-2">
                     <Button
@@ -764,7 +1122,7 @@ export default function Page() {
                         if (!archetypes[0]) return
                         const base = copy(archetypes[0])
                         base.id = `${base.id}_copy_${Math.floor(Math.random() * 9999)}`
-                        base.name = `${base.name} copy`
+                        base.name = lang === 'es' ? `${base.name} copia` : `${base.name} copy`
                         setEditingArchetype(base)
                       }}
                     >
@@ -776,13 +1134,145 @@ export default function Page() {
                   </div>
                 </div>
 
+                <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                  <Card className="space-y-4">
+                    {!selectedArchetype ? (
+                      <p className="text-sm text-slate-400">{lang === 'es' ? 'No hay arquetipos cargados.' : 'No archetypes loaded.'}</p>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="relative h-20 w-20">
+                              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-100 to-amber-300 shadow-[0_0_40px_rgba(250,204,21,0.35)]" />
+                              <div className="absolute inset-3 rounded-full bg-slate-950/10" />
+                              <div className="absolute -bottom-2 left-1/2 h-10 w-14 -translate-x-1/2 rounded-[999px] bg-gradient-to-b from-emerald-200 to-emerald-500 shadow-[0_10px_26px_rgba(16,185,129,0.35)]" />
+                              <Users className="absolute left-1/2 top-1/2 h-7 w-7 -translate-x-1/2 -translate-y-1/2 text-slate-700" />
+                            </div>
+                            <div>
+                              <h3 className="text-2xl font-semibold">{selectedArchetype.name}</h3>
+                              <p className="max-w-2xl text-sm text-slate-400">{selectedArchetype.description}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge>{selectedArchetype.balance_bucket}</Badge>
+                            <Badge>
+                              {(() => {
+                                const origin = getArchetypeOrigin(selectedArchetype)
+                                if (origin === 'default') return lang === 'es' ? 'Base' : 'Default'
+                                if (origin === 'x') return lang === 'es' ? 'Generado por X' : 'Generated from X'
+                                return lang === 'es' ? 'Personalizado' : 'Custom'
+                              })()}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {(
+                            [
+                              ['trust_level', selectedArchetype.trust_level],
+                              ['liquidity_preference', selectedArchetype.liquidity_preference],
+                              ['crypto_affinity', selectedArchetype.crypto_affinity],
+                              ['rumor_sensitivity', selectedArchetype.rumor_sensitivity],
+                              ['macro_anxiety', selectedArchetype.macro_anxiety],
+                              ['risk_aversion', selectedArchetype.risk_aversion],
+                            ] as Array<[string, QualLevel]>
+                          ).map(([key, value]) => {
+                            const detail = lang === 'es' ? ARCHETYPE_PROP_META_ES[key] : ARCHETYPE_PROP_META_EN[key]
+                            const label = key.replaceAll('_', ' ')
+                            return (
+                              <div key={key} className="group relative rounded-xl border border-border p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs uppercase tracking-wide text-slate-400">{label}</span>
+                                  <Badge>{value}</Badge>
+                                </div>
+                                <div className="pointer-events-none absolute left-2 right-2 top-full z-20 mt-1 rounded-lg border border-border bg-card p-2 text-xs text-slate-300 opacity-0 shadow-xl transition group-hover:opacity-100">
+                                  {detail}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <Button variant="outline" onClick={() => setEditingArchetype(copy(selectedArchetype))}>
+                            {lang === 'es' ? 'Editar arquetipo' : 'Edit archetype'}
+                          </Button>
+                          <Button variant="danger" onClick={() => removeArchetype(selectedArchetype.id)}>
+                            {lang === 'es' ? 'Eliminar arquetipo' : 'Delete archetype'}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </Card>
+
+                  <Card className="space-y-3">
+                    <SectionTitle
+                      title={lang === 'es' ? 'Resto de Arquetipos' : 'Other Archetypes'}
+                      subtitle={
+                        lang === 'es'
+                          ? 'Incluye segmentos base y detectados desde señales de X.'
+                          : 'Includes base segments and those detected from X signals.'
+                      }
+                    />
+                    <div className="max-h-[420px] space-y-2 overflow-auto pr-1">
+                      {otherArchetypes.map((a) => {
+                        const origin = getArchetypeOrigin(a)
+                        return (
+                          <button
+                            key={a.id}
+                            onClick={() => setSelectedArchetypeId(a.id)}
+                            className="w-full rounded-xl border border-border bg-background/40 p-3 text-left transition hover:border-primary/60 hover:bg-primary/10"
+                          >
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                              <p className="font-medium">{a.name}</p>
+                              <Badge>
+                                {origin === 'default'
+                                  ? lang === 'es'
+                                    ? 'Base'
+                                    : 'Default'
+                                  : origin === 'x'
+                                    ? lang === 'es'
+                                      ? 'X detectado'
+                                      : 'X detected'
+                                    : lang === 'es'
+                                      ? 'Personalizado'
+                                      : 'Custom'}
+                              </Badge>
+                            </div>
+                            <p className="line-clamp-2 text-xs text-slate-400">{a.description}</p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </Card>
+                </div>
+
                 <Card>
-                  <SectionTitle title="Archetype Map" subtitle="X trust level, Y risk aversion, bubble size by simulation mix." />
+                  <SectionTitle
+                    title={lang === 'es' ? 'Mapa de Arquetipos' : 'Archetype Map'}
+                    subtitle={
+                      lang === 'es'
+                        ? 'X confianza, Y aversión al riesgo, tamaño por mix poblacional.'
+                        : 'X trust, Y risk aversion, size by population mix.'
+                    }
+                  />
                   <div className="h-72">
                     <ResponsiveContainer>
                       <ScatterChart>
-                        <XAxis type="number" dataKey="x" domain={[1, 5]} name="Trust" ticks={[1, 2, 3, 4, 5]} />
-                        <YAxis type="number" dataKey="y" domain={[1, 5]} name="Risk Aversion" ticks={[1, 2, 3, 4, 5]} />
+                        <XAxis
+                          type="number"
+                          dataKey="x"
+                          domain={[1, 5]}
+                          name={lang === 'es' ? 'Confianza' : 'Trust'}
+                          ticks={[1, 2, 3, 4, 5]}
+                        />
+                        <YAxis
+                          type="number"
+                          dataKey="y"
+                          domain={[1, 5]}
+                          name={lang === 'es' ? 'Aversión al Riesgo' : 'Risk Aversion'}
+                          ticks={[1, 2, 3, 4, 5]}
+                        />
                         <ZAxis type="number" dataKey="z" range={[120, 1200]} />
                         <Tooltip cursor={{ strokeDasharray: '3 3' }} />
                         <Scatter
@@ -798,35 +1288,6 @@ export default function Page() {
                     </ResponsiveContainer>
                   </div>
                 </Card>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {archetypes.map((a) => (
-                    <motion.div key={a.id} whileHover={{ y: -4 }}>
-                      <Card className="relative overflow-hidden">
-                        <div className="mb-3 flex items-start justify-between gap-2">
-                          <h3 className="font-semibold">{a.name}</h3>
-                          <Badge>{a.balance_bucket}</Badge>
-                        </div>
-                        <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">{a.description}</p>
-                        <div className="mb-4 flex flex-wrap gap-1.5">
-                          <Badge>trust: {a.trust_level}</Badge>
-                          <Badge>liq: {a.liquidity_preference}</Badge>
-                          <Badge>crypto: {a.crypto_affinity}</Badge>
-                          <Badge>rumor: {a.rumor_sensitivity}</Badge>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" onClick={() => setEditingArchetype(copy(a))}>
-                            {lang === 'es' ? 'Editar' : 'Edit'}
-                          </Button>
-                          <Button variant="danger" onClick={() => removeArchetype(a.id)}>
-                            {lang === 'es' ? 'Eliminar' : 'Delete'}
-                          </Button>
-                        </div>
-                        <div className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-full border-t border-border bg-card/95 p-3 text-xs text-slate-500 opacity-0 transition duration-200 group-hover:translate-y-0 group-hover:opacity-100" />
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
               </section>
             ) : null}
 
@@ -835,56 +1296,346 @@ export default function Page() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <SectionTitle
                     title={lang === 'es' ? 'Gestor de Escenarios' : 'Scenario Manager'}
-                    subtitle={lang === 'es' ? 'Biblioteca persistente de escenarios con contexto editable.' : 'Persistent scenario library with editable context baselines.'}
+                    subtitle={
+                      lang === 'es'
+                        ? 'Vista enfocada: un escenario principal editable + listado lateral.'
+                        : 'Focused view: one editable primary scenario + side list.'
+                    }
                   />
                   <Button
                     onClick={() => {
                       const id = `scenario_${Math.floor(Math.random() * 9999)}`
-                      saveScenario({
+                      const newScenario = {
                         id,
-                        name: `New Scenario ${id}`,
-                        description: 'Editable scenario.',
+                        name: lang === 'es' ? `Nuevo escenario ${id}` : `New Scenario ${id}`,
+                        description: lang === 'es' ? 'Escenario editable.' : 'Editable scenario.',
                         default_country_context: copy(DEFAULT_COUNTRY_CONTEXT),
                         default_company_context: copy(DEFAULT_COMPANY_CONTEXT),
                         notes: '',
                         event_timeline: [],
-                      })
+                      }
+                      setSelectedScenarioId(id)
+                      saveScenario(newScenario)
                     }}
                   >
                     {lang === 'es' ? 'Nuevo Escenario' : 'New Scenario'}
                   </Button>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {scenarios.map((s) => (
-                    <Card key={s.id} className="space-y-2">
-                      <Input value={s.name} onChange={(e) => setScenarios((prev) => prev.map((x) => (x.id === s.id ? { ...x, name: e.target.value } : x)))} />
-                      <TextArea
-                        rows={4}
-                        value={s.description}
-                        onChange={(e) => setScenarios((prev) => prev.map((x) => (x.id === s.id ? { ...x, description: e.target.value } : x)))}
-                      />
-                      <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => saveScenario(s)}>
-                          {lang === 'es' ? 'Guardar' : 'Save'}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            const dupe = copy(s)
-                            dupe.id = `${s.id}_copy_${Math.floor(Math.random() * 9999)}`
-                            dupe.name = `${s.name} copy`
-                            saveScenario(dupe)
-                          }}
+                <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                  <Card className="space-y-3">
+                    {!selectedScenario ? (
+                      <p className="text-sm text-slate-400">{lang === 'es' ? 'No hay escenarios cargados.' : 'No scenarios loaded.'}</p>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <Badge>
+                            {getScenarioOrigin(selectedScenario) === 'default'
+                              ? lang === 'es'
+                                ? 'Escenario base'
+                                : 'Default scenario'
+                              : lang === 'es'
+                                ? 'Escenario personalizado'
+                                : 'Custom scenario'}
+                          </Badge>
+                          <Badge>{selectedScenario.id}</Badge>
+                        </div>
+                        <Input
+                          value={localizeScenarioNameById(selectedScenario.id, selectedScenario.name)}
+                          onChange={(e) =>
+                            setScenarios((prev) =>
+                              prev.map((x) => (x.id === selectedScenario.id ? { ...x, name: e.target.value } : x))
+                            )
+                          }
+                        />
+                        <TextArea
+                          rows={5}
+                          value={localizeScenarioDescriptionById(selectedScenario.id, selectedScenario.description)}
+                          onChange={(e) =>
+                            setScenarios((prev) =>
+                              prev.map((x) => (x.id === selectedScenario.id ? { ...x, description: e.target.value } : x))
+                            )
+                          }
+                        />
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <ContextEditor
+                            title={lang === 'es' ? 'Contexto País (resumen)' : 'Country Context (summary)'}
+                            data={pickContext(selectedScenario.default_country_context, [
+                              'inflation_expectation',
+                              'usd_volatility',
+                              'country_risk_pressure',
+                              'bank_trust_index',
+                              'social_panic_level',
+                            ])}
+                            onChange={(k, v) =>
+                              setScenarios((prev) =>
+                                prev.map((x) =>
+                                  x.id === selectedScenario.id
+                                    ? {
+                                        ...x,
+                                        default_country_context: { ...x.default_country_context, [k]: v },
+                                      }
+                                    : x
+                                )
+                              )
+                            }
+                          />
+                          <ContextEditor
+                            title={lang === 'es' ? 'Contexto Compañía (resumen)' : 'Company Context (summary)'}
+                            data={pickContext(selectedScenario.default_company_context, [
+                              'wallet_yield_current',
+                              'wallet_yield_new',
+                              'competitor_yield',
+                              'cashback_percent',
+                              'app_stability',
+                              'trust_baseline',
+                            ])}
+                            onChange={(k, v) =>
+                              setScenarios((prev) =>
+                                prev.map((x) =>
+                                  x.id === selectedScenario.id
+                                    ? {
+                                        ...x,
+                                        default_company_context: { ...x.default_company_context, [k]: v },
+                                      }
+                                    : x
+                                )
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={() => saveScenario(selectedScenario)}>
+                            {lang === 'es' ? 'Guardar' : 'Save'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              const dupe = copy(selectedScenario)
+                              dupe.id = `${selectedScenario.id}_copy_${Math.floor(Math.random() * 9999)}`
+                              dupe.name = lang === 'es' ? `${selectedScenario.name} copia` : `${selectedScenario.name} copy`
+                              setSelectedScenarioId(dupe.id)
+                              saveScenario(dupe)
+                            }}
+                          >
+                            {lang === 'es' ? 'Duplicar' : 'Duplicate'}
+                          </Button>
+                          <Button
+                            variant="danger"
+                            onClick={async () => {
+                              const currentId = selectedScenario.id
+                              const fallback = scenarios.find((x) => x.id !== currentId)?.id || null
+                              setSelectedScenarioId(fallback)
+                              await removeScenario(currentId)
+                            }}
+                          >
+                            {lang === 'es' ? 'Eliminar' : 'Delete'}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </Card>
+
+                  <Card className="space-y-3">
+                    <SectionTitle
+                      title={lang === 'es' ? 'Listado de Escenarios' : 'Scenario List'}
+                      subtitle={
+                        lang === 'es'
+                          ? 'Seleccioná uno para verlo y editarlo en detalle.'
+                          : 'Select one to view and edit in detail.'
+                      }
+                    />
+                    <div className="max-h-[620px] space-y-2 overflow-auto pr-1">
+                      {(selectedScenario ? [selectedScenario, ...otherScenarios] : scenarios).map((s) => {
+                        const active = s.id === selectedScenario?.id
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => setSelectedScenarioId(s.id)}
+                            className={`w-full rounded-xl border p-3 text-left transition ${
+                              active
+                                ? 'border-primary bg-primary/15'
+                                : 'border-border bg-background/40 hover:border-primary/60 hover:bg-primary/10'
+                            }`}
+                          >
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                              <p className="font-medium">{localizeScenarioNameById(s.id, s.name)}</p>
+                              <Badge>
+                                {getScenarioOrigin(s) === 'default'
+                                  ? lang === 'es'
+                                    ? 'Base'
+                                    : 'Default'
+                                  : lang === 'es'
+                                    ? 'Custom'
+                                    : 'Custom'}
+                              </Badge>
+                            </div>
+                            <p className="line-clamp-2 text-xs text-slate-400">{localizeScenarioDescriptionById(s.id, s.description)}</p>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </Card>
+                </div>
+              </section>
+            ) : null}
+
+            {tab === 'contexts' ? (
+              <section className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <SectionTitle
+                    title={lang === 'es' ? 'Gestor de Contextos' : 'Context Manager'}
+                    subtitle={
+                      lang === 'es'
+                        ? 'Creá y editá perfiles de contexto país para reutilizar en simulaciones.'
+                        : 'Create and edit reusable country context profiles.'
+                    }
+                  />
+                  <Button
+                    onClick={() => {
+                      const id = `ctx_${Math.floor(Math.random() * 9999)}`
+                      const next: ContextProfile = {
+                        id,
+                        title: lang === 'es' ? `Nuevo contexto ${id}` : `New context ${id}`,
+                        description: lang === 'es' ? 'Contexto editable.' : 'Editable context.',
+                        country_context: copy(DEFAULT_COUNTRY_CONTEXT),
+                      }
+                      const updated = [next, ...contextProfiles]
+                      setSelectedContextId(id)
+                      saveContextProfiles(updated)
+                    }}
+                  >
+                    {lang === 'es' ? 'Nuevo Contexto' : 'New Context'}
+                  </Button>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+                  <Card className="space-y-3">
+                    {!selectedContext ? (
+                      <p className="text-sm text-slate-400">{lang === 'es' ? 'No hay contextos cargados.' : 'No contexts loaded.'}</p>
+                    ) : (
+                      <>
+                        <Input
+                          value={selectedContext.title}
+                          onChange={(e) =>
+                            setContextProfiles((prev) =>
+                              prev.map((x) => (x.id === selectedContext.id ? { ...x, title: e.target.value } : x))
+                            )
+                          }
+                        />
+                        <TextArea
+                          rows={3}
+                          value={selectedContext.description}
+                          onChange={(e) =>
+                            setContextProfiles((prev) =>
+                              prev.map((x) => (x.id === selectedContext.id ? { ...x, description: e.target.value } : x))
+                            )
+                          }
+                        />
+                        <ContextEditor
+                          title={lang === 'es' ? 'Editar Contexto Argentina (Avanzado)' : 'Edit Argentina Context (Advanced)'}
+                          data={selectedContext.country_context}
+                          onChange={(k, v) =>
+                            setContextProfiles((prev) =>
+                              prev.map((x) =>
+                                x.id === selectedContext.id
+                                  ? { ...x, country_context: { ...x.country_context, [k]: v } }
+                                  : x
+                              )
+                            )
+                          }
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <Button variant="outline" onClick={() => saveContextProfiles(contextProfiles)}>
+                            {lang === 'es' ? 'Guardar Contextos' : 'Save Contexts'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              if (!selectedContext) return
+                              const dupe = copy(selectedContext)
+                              dupe.id = `${selectedContext.id}_copy_${Math.floor(Math.random() * 9999)}`
+                              dupe.title = lang === 'es' ? `${selectedContext.title} copia` : `${selectedContext.title} copy`
+                              const updated = [dupe, ...contextProfiles]
+                              setSelectedContextId(dupe.id)
+                              saveContextProfiles(updated)
+                            }}
+                          >
+                            {lang === 'es' ? 'Duplicar' : 'Duplicate'}
+                          </Button>
+                          <Button
+                            variant="danger"
+                            onClick={() => {
+                              if (!selectedContext) return
+                              const updated = contextProfiles.filter((x) => x.id !== selectedContext.id)
+                              saveContextProfiles(updated)
+                            }}
+                          >
+                            {lang === 'es' ? 'Eliminar' : 'Delete'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={async () => {
+                              if (!selectedContext) return
+                              const prompt = window.prompt(
+                                lang === 'es'
+                                  ? 'Describí el evento global o futuro para traducir a contexto'
+                                  : 'Describe the global/future event to translate into context'
+                              )
+                              if (!prompt?.trim()) return
+                              try {
+                                const out = await api.translateScenario(prompt)
+                                setContextProfiles((prev) =>
+                                  prev.map((x) =>
+                                    x.id === selectedContext.id
+                                      ? {
+                                          ...x,
+                                          country_context: {
+                                            ...x.country_context,
+                                            ...(out.country_context as Record<string, QualLevel>),
+                                          },
+                                        }
+                                      : x
+                                  )
+                                )
+                              } catch (e) {
+                                setError((e as Error).message)
+                              }
+                            }}
+                          >
+                            {lang === 'es' ? 'LLM: traducir evento' : 'LLM: translate event'}
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </Card>
+
+                  <Card className="space-y-3">
+                    <SectionTitle
+                      title={lang === 'es' ? 'Listado de Contextos' : 'Context List'}
+                      subtitle={
+                        lang === 'es'
+                          ? 'Seleccioná un perfil para editarlo o aplicarlo en Nueva Simulación.'
+                          : 'Select a profile to edit or apply in New Simulation.'
+                      }
+                    />
+                    <div className="max-h-[700px] space-y-2 overflow-auto pr-1">
+                      {(selectedContext ? [selectedContext, ...otherContexts] : contextProfiles).map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => setSelectedContextId(c.id)}
+                          className={`w-full rounded-xl border p-3 text-left transition ${
+                            c.id === selectedContext?.id
+                              ? 'border-primary bg-primary/15'
+                              : 'border-border bg-background/40 hover:border-primary/60 hover:bg-primary/10'
+                          }`}
                         >
-                          {lang === 'es' ? 'Duplicar' : 'Duplicate'}
-                        </Button>
-                        <Button variant="danger" onClick={() => removeScenario(s.id)}>
-                          {lang === 'es' ? 'Eliminar' : 'Delete'}
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
+                          <p className="font-medium">{c.title}</p>
+                          <p className="line-clamp-2 text-xs text-slate-400">{c.description}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </Card>
                 </div>
               </section>
             ) : null}
@@ -901,7 +1652,10 @@ export default function Page() {
                       <div>
                         <h3 className="font-medium">{r.id}</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                          {new Date(r.created_at).toLocaleString()} • {r.config.scenario_name}
+                          {new Date(r.created_at).toLocaleString()} • {localizeScenarioNameLoose(r.config.scenario_name)}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          Panic Index: {Number(r.outputs?.single_run?.panic_index_score || 0).toFixed(1)} ({r.outputs?.single_run?.panic_index_label || 'Normal'})
                         </p>
                       </div>
                       <div className="flex gap-2">
@@ -962,6 +1716,100 @@ export default function Page() {
       </main>
 
       <AnimatePresence>
+        {panicOpen && currentMetrics ? (
+          <motion.aside
+            className="fixed inset-0 z-50 bg-black/45"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPanicOpen(false)}
+          >
+            <motion.div
+              className="absolute right-0 top-0 h-full w-full max-w-2xl overflow-auto border-l border-border bg-background p-5"
+              initial={{ x: 340 }}
+              animate={{ x: 0 }}
+              exit={{ x: 340 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <SectionTitle
+                title={lang === 'es' ? 'Panic Index - Explicabilidad' : 'Panic Index - Explainability'}
+                subtitle={`${panicScore.toFixed(1)} / 100 • ${panicLabel}`}
+              />
+              <Card className="mb-4">
+                <p className="text-sm text-slate-300">
+                  {lang === 'es'
+                    ? `El Panic Index está impulsado principalmente por ${panicDriverLabel(panicMainDriver, 'es')}.`
+                    : `Panic Index is mainly driven by ${panicDriverLabel(panicMainDriver, 'en')}.`}
+                </p>
+              </Card>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <SectionTitle title={lang === 'es' ? 'Componentes' : 'Components'} />
+                  <div className="space-y-2 text-sm">
+                    {Object.entries((currentMetrics.panic_index_components as Record<string, unknown>) || {})
+                      .filter(([k]) => k !== 'weighted_contribution')
+                      .map(([k, v]) => (
+                        <div key={k} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                          <span className="text-slate-400">{k}</span>
+                          <span className="font-medium">{typeof v === 'number' ? v.toFixed(4) : String(v)}</span>
+                        </div>
+                      ))}
+                  </div>
+                </Card>
+                <Card>
+                  <SectionTitle title={lang === 'es' ? 'Aportes ponderados' : 'Weighted contributions'} />
+                  <div className="space-y-2 text-sm">
+                    {Object.entries(
+                      ((currentMetrics.panic_index_components as Record<string, unknown>)?.weighted_contribution as
+                        | Record<string, number>
+                        | undefined) || {}
+                    ).map(([k, v]) => (
+                      <div key={k} className="rounded-lg border border-border px-3 py-2">
+                        <div className="mb-1 flex items-center justify-between">
+                          <span className="text-slate-400">{k}</span>
+                          <span className="font-medium">{v.toFixed(4)}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted">
+                          <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(100, v * 400)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+                <Card>
+                  <SectionTitle title={lang === 'es' ? 'Acciones dominantes' : 'Dominant actions'} />
+                  <div className="space-y-2 text-sm">
+                    {Object.entries(currentMetrics.final_action_distribution || {})
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 6)
+                      .map(([k, v]) => (
+                        <div key={k} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                          <span>{k}</span>
+                          <span className="font-medium">{v}</span>
+                        </div>
+                      ))}
+                  </div>
+                </Card>
+                <Card>
+                  <SectionTitle title={lang === 'es' ? 'Arquetipos más activos' : 'Top active archetypes'} />
+                  <div className="space-y-2 text-sm">
+                    {Object.entries(currentMetrics.archetype_level_breakdown || {})
+                      .map(([k, actions]) => [k, Object.values(actions).reduce((a, b) => a + Number(b || 0), 0)] as const)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 6)
+                      .map(([k, v]) => (
+                        <div key={k} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                          <span>{k}</span>
+                          <span className="font-medium">{v}</span>
+                        </div>
+                      ))}
+                  </div>
+                </Card>
+              </div>
+            </motion.div>
+          </motion.aside>
+        ) : null}
         {editingArchetype ? (
           <motion.aside
             className="fixed inset-0 z-50 bg-black/35"
@@ -977,12 +1825,12 @@ export default function Page() {
               exit={{ x: 300 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <SectionTitle title="Edit Archetype" subtitle={editingArchetype.id} />
+              <SectionTitle title={lang === 'es' ? 'Editar Arquetipo' : 'Edit Archetype'} subtitle={editingArchetype.id} />
               <div className="space-y-3">
                 <Input
                   value={editingArchetype.name}
                   onChange={(e) => setEditingArchetype({ ...editingArchetype, name: e.target.value })}
-                  placeholder="Name"
+                  placeholder={lang === 'es' ? 'Nombre' : 'Name'}
                 />
                 <TextArea
                   value={editingArchetype.description}
@@ -1039,9 +1887,9 @@ export default function Page() {
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Button onClick={() => saveArchetype(editingArchetype)}>Save</Button>
+                  <Button onClick={() => saveArchetype(editingArchetype)}>{lang === 'es' ? 'Guardar' : 'Save'}</Button>
                   <Button variant="outline" onClick={() => setEditingArchetype(null)}>
-                    Cancel
+                    {lang === 'es' ? 'Cancelar' : 'Cancel'}
                   </Button>
                 </div>
               </div>
@@ -1055,10 +1903,23 @@ export default function Page() {
   )
 }
 
-function Field({ label, value, onChange }: { label: string; value: number; onChange: (v: string) => void }) {
+function Field({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  value: number
+  onChange: (v: string) => void
+}) {
   return (
     <div>
-      <label className="mb-1 block text-xs">{label}</label>
+      <label className="mb-1 block text-xs" title={hint || ''}>
+        {label}
+        {hint ? <span className="ml-1 text-slate-400">ⓘ</span> : null}
+      </label>
       <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   )
@@ -1113,6 +1974,13 @@ function ContextClusterCard({
   data: Record<string, QualLevel>
   lang: 'es' | 'en'
 }) {
+  const colorByQual: Record<QualLevel, string> = {
+    very_low: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+    low: 'bg-blue-500/20 text-blue-300 border-blue-500/40',
+    medium: 'bg-amber-500/20 text-amber-200 border-amber-500/40',
+    high: 'bg-orange-500/20 text-orange-300 border-orange-500/40',
+    very_high: 'bg-red-500/20 text-red-300 border-red-500/40',
+  }
   return (
     <Card>
       <SectionTitle title={title} />
@@ -1122,11 +1990,20 @@ function ContextClusterCard({
             <div className="text-xs text-slate-500">{key}</div>
             <div className="mt-1 flex items-center justify-between">
               <span className="text-sm font-medium">{data[key]}</span>
-              <Badge>{lang === 'es' ? 'impacto' : 'impact'}</Badge>
+              <Badge className={colorByQual[data[key] || 'medium']}>{lang === 'es' ? 'impacto' : 'impact'}</Badge>
             </div>
           </div>
         ))}
       </div>
+    </Card>
+  )
+}
+
+function StepIntro({ title, description }: { title: string; description: string }) {
+  return (
+    <Card className="border-primary/30 bg-primary/10">
+      <h4 className="text-sm font-semibold text-primary">{title}</h4>
+      <p className="mt-1 text-sm text-slate-300">{description}</p>
     </Card>
   )
 }
@@ -1158,9 +2035,191 @@ function MetricCard({
   )
 }
 
+function PanicMetricCard({
+  lang,
+  score,
+  label,
+  mainDriver,
+  onOpen,
+}: {
+  lang: Lang
+  score: number
+  label: string
+  mainDriver: string
+  onOpen: () => void
+}) {
+  const severity = panicSeverityStyle(score)
+  const gaugeColor = panicGaugeColor(score)
+  const clamped = Math.min(100, Math.max(0, score))
+  return (
+    <Card className={`cursor-pointer border-2 ${severity.border}`} onClick={onOpen}>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-sm text-slate-400">{lang === 'es' ? 'Panic Index' : 'Panic Index'}</p>
+        <AlertTriangle className={`h-4 w-4 ${severity.text}`} />
+      </div>
+
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div
+          className="relative h-20 w-20 rounded-full"
+          style={{
+            background: `conic-gradient(${gaugeColor} ${clamped * 3.6}deg, rgba(148,163,184,0.18) 0deg)`,
+          }}
+        >
+          <div className="absolute inset-[8px] flex items-center justify-center rounded-full bg-slate-950/90">
+            <span className="text-sm font-semibold">{score.toFixed(0)}</span>
+          </div>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-3xl font-bold leading-none">{score.toFixed(1)}</p>
+          <p className="mt-1 text-xs text-slate-400">/ 100</p>
+        </div>
+        <Badge className={`${severity.badge}`}>{label}</Badge>
+      </div>
+
+      <div className="mt-1 h-2 rounded-full bg-muted">
+        <div className={`h-2 rounded-full ${severity.bar}`} style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
+      </div>
+      <p className="mt-3 text-xs text-slate-400">
+        {lang === 'es' ? 'Driver principal' : 'Main driver'}: {panicDriverLabel(mainDriver, lang)}
+      </p>
+    </Card>
+  )
+}
+
+function buildSankeyData(
+  metrics:
+    | {
+        estimated_migration_of_funds?: number
+        archetype_level_breakdown?: Record<string, Record<string, number>>
+      }
+    | undefined
+) {
+  const breakdown = metrics?.archetype_level_breakdown || {}
+  const archetypeNames = Object.keys(breakdown)
+  if (!archetypeNames.length) return { nodes: [], links: [] }
+
+  const actionWeight: Record<string, number> = {
+    withdraw_fast: 1.0,
+    move_funds: 1.0,
+    buy_crypto: 0.9,
+    reduce_balance: 0.6,
+    exploit_promo: 0.35,
+    wait_and_see: 0.2,
+    stay: 0.05,
+    increase_usage: 0.05,
+  }
+  const actionDestination: Record<string, string> = {
+    withdraw_fast: 'cash_out',
+    move_funds: 'competitor_wallet',
+    buy_crypto: 'crypto_assets',
+    reduce_balance: 'bank_or_cash',
+    exploit_promo: 'promo_loop',
+    wait_and_see: 'in_app_wait',
+    stay: 'in_app_stable',
+    increase_usage: 'in_app_growth',
+  }
+
+  const actionTotals: Record<string, number> = {}
+  let weightedTotal = 0
+
+  for (const archetype of archetypeNames) {
+    const actions = breakdown[archetype] || {}
+    for (const [action, count] of Object.entries(actions)) {
+      const weighted = Math.max(0, count) * (actionWeight[action] || 0.2)
+      actionTotals[action] = (actionTotals[action] || 0) + weighted
+      weightedTotal += weighted
+    }
+  }
+
+  const migrationBase = Math.max(1, metrics?.estimated_migration_of_funds || weightedTotal || 1)
+  const factor = weightedTotal > 0 ? migrationBase / weightedTotal : 1
+
+  const linksRaw: Array<{ source: string; target: string; value: number }> = []
+
+  for (const archetype of archetypeNames) {
+    const actions = breakdown[archetype] || {}
+    for (const [action, count] of Object.entries(actions)) {
+      const weighted = Math.max(0, count) * (actionWeight[action] || 0.2) * factor
+      if (weighted <= 0) continue
+      linksRaw.push({ source: archetype, target: action, value: weighted })
+    }
+  }
+
+  for (const [action, weightedCount] of Object.entries(actionTotals)) {
+    const destination = actionDestination[action] || 'other_destination'
+    const value = weightedCount * factor
+    if (value <= 0) continue
+    linksRaw.push({ source: action, target: destination, value })
+  }
+
+  const nodeNames = Array.from(new Set(linksRaw.flatMap((l) => [l.source, l.target])))
+  const nodeIndex = Object.fromEntries(nodeNames.map((name, idx) => [name, idx]))
+
+  return {
+    nodes: nodeNames.map((name) => ({ name })),
+    links: linksRaw.map((l) => ({
+      source: nodeIndex[l.source],
+      target: nodeIndex[l.target],
+      value: Number(l.value.toFixed(2)),
+    })),
+  }
+}
+
 function num(v?: number) {
   if (v === undefined || v === null) return '-'
   return Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(v)
+}
+
+function panicSeverityStyle(score: number) {
+  if (score <= 25) {
+    return {
+      border: 'border-emerald-500/40',
+      text: 'text-emerald-400',
+      badge: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
+      bar: 'bg-emerald-500',
+    }
+  }
+  if (score <= 50) {
+    return {
+      border: 'border-yellow-500/40',
+      text: 'text-yellow-400',
+      badge: 'border-yellow-500/40 bg-yellow-500/15 text-yellow-300',
+      bar: 'bg-yellow-500',
+    }
+  }
+  if (score <= 75) {
+    return {
+      border: 'border-orange-500/40',
+      text: 'text-orange-400',
+      badge: 'border-orange-500/40 bg-orange-500/15 text-orange-300',
+      bar: 'bg-orange-500',
+    }
+  }
+  return {
+    border: 'border-red-500/40',
+    text: 'text-red-400',
+    badge: 'border-red-500/40 bg-red-500/15 text-red-300',
+    bar: 'bg-red-500',
+  }
+}
+
+function panicGaugeColor(score: number) {
+  if (score <= 25) return '#22c55e'
+  if (score <= 50) return '#eab308'
+  if (score <= 75) return '#f97316'
+  return '#ef4444'
+}
+
+function panicDriverLabel(driver: string, lang: Lang) {
+  const labels: Record<string, { es: string; en: string }> = {
+    trust_deterioration: { es: 'deterioro de confianza', en: 'trust deterioration' },
+    liquidity_stress: { es: 'estrés de liquidez', en: 'liquidity stress' },
+    withdraw_fast_share: { es: 'retiros acelerados', en: 'fast withdrawals' },
+    move_funds_share: { es: 'migración de fondos', en: 'fund migration' },
+    rumor_activation_score: { es: 'activación por rumores', en: 'rumor activation' },
+    crypto_flight_score: { es: 'vuelo hacia cripto', en: 'crypto flight' },
+  }
+  return labels[driver]?.[lang] || driver
 }
 
 function pct(v?: number) {

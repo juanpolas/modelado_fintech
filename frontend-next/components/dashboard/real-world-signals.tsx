@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, AlertTriangle, Newspaper, RefreshCw, Sparkles, Twitter } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { api } from '@/lib/api'
@@ -15,11 +15,23 @@ import type {
 } from '@/types'
 import { Badge, Button, Card, Input, SectionTitle, Select } from '@/components/ui/primitives'
 
+type SavedTwitterSearch = {
+  id: string
+  name: string
+  include_terms: string[]
+  geo_terms: string[]
+  exclude_terms: string[]
+  lang: string
+  exclude_retweet: boolean
+  exclude_reply: boolean
+  require_links: boolean
+}
+
 const TWITTER_PRESETS = [
-  '(argentina OR "dolar blue" OR devaluacion OR inflacion OR bancos OR fintech OR "mercado pago" OR "naranja x" OR "uala") lang:es -is:retweet',
-  '("bitcoin argentina" OR stablecoins OR "crypto argentina" OR "comprar usdt") lang:es -is:retweet',
-  '(cashback OR promos OR "promo bancaria" OR "tarjeta virtual") argentina lang:es -is:retweet',
-  '("retiro de fondos" OR corralito OR bancos OR "no puedo retirar") argentina lang:es -is:retweet',
+  '((dolar blue OR devaluacion OR inflacion OR bcra OR bancos OR fintech OR mercado pago OR uala OR naranja x OR corralito OR retiro de fondos OR stablecoin OR usdt OR bitcoin argentina OR cashback OR promo) (argentina OR ar)) lang:es -is:retweet -is:reply -has:links -futbol -amistoso -uefa -conmebol -mundial -piñon -españa -dominicanos',
+  '((bitcoin argentina OR stablecoins OR usdt OR cripto OR crypto) (argentina OR ar)) lang:es -is:retweet -is:reply',
+  '((cashback OR promo OR promos OR billetera OR wallet yield) (argentina OR ar)) lang:es -is:retweet -is:reply',
+  '((retiro de fondos OR corralito OR corrida bancaria OR no puedo retirar) (argentina OR ar)) lang:es -is:retweet -is:reply',
 ]
 
 type SignalsProps = {
@@ -28,6 +40,8 @@ type SignalsProps = {
   initialCompanyContext: Record<string, QualLevel>
   onApply: (country: Record<string, QualLevel>, company: Record<string, QualLevel>) => void
   onError: (message: string) => void
+  autoLoadOnMount?: boolean
+  syncOnChange?: boolean
 }
 
 type SignalTab = 'twitter' | 'news' | 'fused'
@@ -67,11 +81,53 @@ export function RealWorldSignals({
   initialCompanyContext,
   onApply,
   onError,
+  autoLoadOnMount = false,
+  syncOnChange = false,
 }: SignalsProps) {
+  const bootstrappedRef = useRef(false)
   const [tab, setTab] = useState<SignalTab>('twitter')
   const [loading, setLoading] = useState(false)
   const [query, setQuery] = useState(TWITTER_PRESETS[0])
   const [maxResults, setMaxResults] = useState(50)
+  const [includeTerms, setIncludeTerms] = useState<string[]>([
+    'dolar blue',
+    'devaluacion',
+    'inflacion',
+    'bcra',
+    'bancos',
+    'fintech',
+    'mercado pago',
+    'uala',
+    'naranja x',
+    'corralito',
+    'retiro de fondos',
+    'stablecoin',
+    'usdt',
+    'bitcoin argentina',
+    'cashback',
+    'promo',
+  ])
+  const [geoTerms, setGeoTerms] = useState<string[]>(['argentina', 'ar'])
+  const [excludeTerms, setExcludeTerms] = useState<string[]>([
+    'futbol',
+    'amistoso',
+    'uefa',
+    'conmebol',
+    'mundial',
+    'piñon',
+    'españa',
+    'dominicanos',
+  ])
+  const [langCode, setLangCode] = useState('es')
+  const [excludeRetweet, setExcludeRetweet] = useState(true)
+  const [excludeReply, setExcludeReply] = useState(true)
+  const [requireLinks, setRequireLinks] = useState(true)
+  const [newInclude, setNewInclude] = useState('')
+  const [newGeo, setNewGeo] = useState('')
+  const [newExclude, setNewExclude] = useState('')
+  const [savedSearches, setSavedSearches] = useState<SavedTwitterSearch[]>([])
+  const [selectedSavedId, setSelectedSavedId] = useState('')
+  const [newSearchName, setNewSearchName] = useState('')
 
   const [twitterFetched, setTwitterFetched] = useState<TwitterFetchResponse | null>(null)
   const [twitterAnalyzed, setTwitterAnalyzed] = useState<TwitterAnalyzeResponse | null>(null)
@@ -82,6 +138,8 @@ export function RealWorldSignals({
   const [fused, setFused] = useState<FusedSignalsResponse | null>(null)
   const [editableCountry, setEditableCountry] = useState<Record<string, QualLevel>>({})
   const [editableCompany, setEditableCompany] = useState<Record<string, QualLevel>>({})
+  const [selectedCountryKeys, setSelectedCountryKeys] = useState<Record<string, boolean>>({})
+  const [selectedCompanyKeys, setSelectedCompanyKeys] = useState<Record<string, boolean>>({})
 
   const effectiveCountry = useMemo(
     () => (Object.keys(editableCountry).length ? editableCountry : initialCountryContext),
@@ -91,6 +149,33 @@ export function RealWorldSignals({
     () => (Object.keys(editableCompany).length ? editableCompany : initialCompanyContext),
     [editableCompany, initialCompanyContext]
   )
+  const appliedCountry = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(editableCountry).filter(([k]) => selectedCountryKeys[k] !== false)
+      ) as Record<string, QualLevel>,
+    [editableCountry, selectedCountryKeys]
+  )
+  const appliedCompany = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(editableCompany).filter(([k]) => selectedCompanyKeys[k] !== false)
+      ) as Record<string, QualLevel>,
+    [editableCompany, selectedCompanyKeys]
+  )
+
+  const builtQuery = useMemo(() => {
+    const q = formatQueryParts(
+      includeTerms,
+      geoTerms,
+      excludeTerms,
+      langCode,
+      excludeRetweet,
+      excludeReply,
+      requireLinks
+    )
+    return q
+  }, [includeTerms, geoTerms, excludeTerms, langCode, excludeRetweet, excludeReply, requireLinks])
 
   async function refreshTwitter() {
     setLoading(true)
@@ -105,6 +190,22 @@ export function RealWorldSignals({
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    setQuery(builtQuery)
+  }, [builtQuery])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const st = await api.settings()
+        const stored = Array.isArray(st.twitter_saved_searches) ? (st.twitter_saved_searches as SavedTwitterSearch[]) : []
+        if (stored.length) setSavedSearches(stored)
+      } catch {
+        // ignore settings load errors in this panel
+      }
+    })()
+  }, [])
 
   async function refreshNews() {
     setLoading(true)
@@ -134,6 +235,12 @@ export function RealWorldSignals({
       setFused(out)
       setEditableCountry(out.country_context_adjustment)
       setEditableCompany(out.company_context_adjustment)
+      setSelectedCountryKeys(
+        Object.fromEntries(Object.keys(out.country_context_adjustment).map((k) => [k, true]))
+      )
+      setSelectedCompanyKeys(
+        Object.fromEntries(Object.keys(out.company_context_adjustment).map((k) => [k, true]))
+      )
       setTab('fused')
     } catch (e) {
       onError((e as Error).message || 'Fusion failed')
@@ -141,6 +248,85 @@ export function RealWorldSignals({
       setLoading(false)
     }
   }
+
+  async function persistSavedSearches(next: SavedTwitterSearch[]) {
+    setSavedSearches(next)
+    try {
+      const st = await api.settings()
+      await api.saveSettings({ ...st, twitter_saved_searches: next })
+    } catch (e) {
+      onError((e as Error).message || 'No se pudo guardar búsquedas')
+    }
+  }
+
+  function addToken(value: string, setter: (next: string[]) => void, current: string[]) {
+    const v = value.trim()
+    if (!v) return
+    if (current.some((x) => x.toLowerCase() === v.toLowerCase())) return
+    setter([...current, v])
+  }
+
+  function removeToken(value: string, setter: (next: string[]) => void, current: string[]) {
+    setter(current.filter((x) => x !== value))
+  }
+
+  function applySavedSearch(item: SavedTwitterSearch) {
+    setIncludeTerms(item.include_terms || [])
+    setGeoTerms(item.geo_terms || [])
+    setExcludeTerms(item.exclude_terms || [])
+    setLangCode(item.lang || 'es')
+    setExcludeRetweet(item.exclude_retweet !== false)
+    setExcludeReply(item.exclude_reply !== false)
+    setRequireLinks(item.require_links !== false)
+    setSelectedSavedId(item.id)
+  }
+
+  useEffect(() => {
+    if (!autoLoadOnMount || bootstrappedRef.current) return
+    bootstrappedRef.current = true
+    ;(async () => {
+      setLoading(true)
+      try {
+        const fetchedTw = await api.fetchTwitterSignals({ query, max_results: maxResults })
+        setTwitterFetched(fetchedTw)
+        const analyzedTw = await api.analyzeTwitterSignals({ fetched: fetchedTw })
+        setTwitterAnalyzed(analyzedTw)
+
+        const fetchedNw = await api.fetchNewsSignals({})
+        setNewsFetched(fetchedNw)
+        const analyzedNw = await api.analyzeNewsSignals({ fetched: fetchedNw })
+        setNewsAnalyzed(analyzedNw)
+
+        const out = await api.fuseSignals({
+          twitter_analysis: analyzedTw,
+          news_analysis: analyzedNw,
+          user_context: {
+            country_context: effectiveCountry,
+            company_context: effectiveCompany,
+          },
+        })
+        setFused(out)
+        setEditableCountry(out.country_context_adjustment)
+        setEditableCompany(out.company_context_adjustment)
+        setSelectedCountryKeys(
+          Object.fromEntries(Object.keys(out.country_context_adjustment).map((k) => [k, true]))
+        )
+        setSelectedCompanyKeys(
+          Object.fromEntries(Object.keys(out.company_context_adjustment).map((k) => [k, true]))
+        )
+        setTab('fused')
+      } catch (e) {
+        onError((e as Error).message || 'Autoload failed')
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [autoLoadOnMount, effectiveCompany, effectiveCountry, maxResults, onError, query])
+
+  useEffect(() => {
+    if (!syncOnChange || !fused) return
+    onApply(appliedCountry, appliedCompany)
+  }, [syncOnChange, fused, appliedCountry, appliedCompany, onApply])
 
   return (
     <Card className="space-y-4">
@@ -163,6 +349,164 @@ export function RealWorldSignals({
 
       {tab === 'twitter' ? (
         <div className="space-y-4">
+          <Card className="space-y-3">
+            <SectionTitle
+              title={lang === 'es' ? 'Constructor Dinámico de Query' : 'Dynamic Query Builder'}
+              subtitle={lang === 'es' ? 'Agregá o quitá términos y guardá búsquedas reutilizables.' : 'Add or remove terms and save reusable searches.'}
+            />
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-xs text-slate-400">{lang === 'es' ? 'Términos principales' : 'Main terms'}</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={newInclude}
+                    onChange={(e) => setNewInclude(e.target.value)}
+                    placeholder={lang === 'es' ? 'ej: fintech' : 'e.g. fintech'}
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      addToken(newInclude, setIncludeTerms, includeTerms)
+                      setNewInclude('')
+                    }}
+                  >
+                    +
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {includeTerms.map((t) => (
+                    <Badge key={t} className="cursor-pointer" onClick={() => removeToken(t, setIncludeTerms, includeTerms)} title={lang === 'es' ? 'Click para quitar' : 'Click to remove'}>
+                      {t} ×
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs text-slate-400">{lang === 'es' ? 'Términos geográficos' : 'Geo terms'}</p>
+                <div className="flex gap-2">
+                  <Input value={newGeo} onChange={(e) => setNewGeo(e.target.value)} placeholder={lang === 'es' ? 'ej: argentina' : 'e.g. argentina'} />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      addToken(newGeo, setGeoTerms, geoTerms)
+                      setNewGeo('')
+                    }}
+                  >
+                    +
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {geoTerms.map((t) => (
+                    <Badge key={t} className="cursor-pointer" onClick={() => removeToken(t, setGeoTerms, geoTerms)} title={lang === 'es' ? 'Click para quitar' : 'Click to remove'}>
+                      {t} ×
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <p className="text-xs text-slate-400">{lang === 'es' ? 'Términos excluidos (ruido)' : 'Excluded noise terms'}</p>
+                <div className="flex gap-2">
+                  <Input value={newExclude} onChange={(e) => setNewExclude(e.target.value)} placeholder={lang === 'es' ? 'ej: futbol' : 'e.g. football'} />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      addToken(newExclude, setExcludeTerms, excludeTerms)
+                      setNewExclude('')
+                    }}
+                  >
+                    +
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {excludeTerms.map((t) => (
+                    <Badge key={t} className="cursor-pointer" onClick={() => removeToken(t, setExcludeTerms, excludeTerms)} title={lang === 'es' ? 'Click para quitar' : 'Click to remove'}>
+                      {t} ×
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-4">
+              <Select value={langCode} onChange={(e) => setLangCode(e.target.value)}>
+                <option value="es">lang:es</option>
+                <option value="en">lang:en</option>
+              </Select>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={excludeRetweet} onChange={(e) => setExcludeRetweet(e.target.checked)} />
+                -is:retweet
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={excludeReply} onChange={(e) => setExcludeReply(e.target.checked)} />
+                -is:reply
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={requireLinks} onChange={(e) => setRequireLinks(e.target.checked)} />
+                -has:links
+              </label>
+            </div>
+
+            <TextPreview title={lang === 'es' ? 'Query generada' : 'Built query'} value={builtQuery} />
+
+            <div className="grid gap-2 md:grid-cols-[1fr_auto_auto]">
+              <Input
+                value={newSearchName}
+                onChange={(e) => setNewSearchName(e.target.value)}
+                placeholder={lang === 'es' ? 'Nombre de búsqueda (ej: Macro + Cripto)' : 'Search name (e.g. Macro + Crypto)'}
+              />
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  const name = newSearchName.trim()
+                  if (!name) return
+                  const item: SavedTwitterSearch = {
+                    id: `tw_${Date.now()}`,
+                    name,
+                    include_terms: includeTerms,
+                    geo_terms: geoTerms,
+                    exclude_terms: excludeTerms,
+                    lang: langCode,
+                    exclude_retweet: excludeRetweet,
+                    exclude_reply: excludeReply,
+                    require_links: requireLinks,
+                  }
+                  await persistSavedSearches([item, ...savedSearches])
+                  setSelectedSavedId(item.id)
+                  setNewSearchName('')
+                }}
+              >
+                {lang === 'es' ? 'Guardar búsqueda' : 'Save search'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!selectedSavedId) return
+                  await persistSavedSearches(savedSearches.filter((s) => s.id !== selectedSavedId))
+                  setSelectedSavedId('')
+                }}
+              >
+                {lang === 'es' ? 'Eliminar guardada' : 'Delete saved'}
+              </Button>
+            </div>
+
+            {savedSearches.length ? (
+              <div className="flex flex-wrap gap-2">
+                {savedSearches.map((s) => (
+                  <Button
+                    key={s.id}
+                    variant={s.id === selectedSavedId ? 'default' : 'outline'}
+                    onClick={() => applySavedSearch(s)}
+                  >
+                    {s.name}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+          </Card>
+
           <div className="grid gap-3 md:grid-cols-[1fr_140px_auto_auto]">
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="X query" />
             <Input type="number" min={10} max={100} value={maxResults} onChange={(e) => setMaxResults(Number(e.target.value || 50))} />
@@ -181,9 +525,13 @@ export function RealWorldSignals({
           {twitterAnalyzed ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
-              <Badge className={severityClass(twitterAnalyzed.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {twitterAnalyzed.severity}</Badge>
-                <Badge>{lang === 'es' ? 'tweets' : 'tweets'}: {twitterAnalyzed.raw_count}</Badge>
+                <Badge className={severityClass(twitterAnalyzed.severity)}>{lang === 'es' ? 'severidad' : 'severity'}: {twitterAnalyzed.severity}</Badge>
+                <Badge>{lang === 'es' ? 'tweets relevantes' : 'relevant tweets'}: {twitterAnalyzed.raw_count}</Badge>
+                {typeof twitterAnalyzed.noise_count === 'number' ? (
+                  <Badge>{lang === 'es' ? 'ruido filtrado' : 'filtered noise'}: {twitterAnalyzed.noise_count}</Badge>
+                ) : null}
                 {twitterFetched?.warning ? <Badge className="border-red-300 text-red-600">{twitterFetched.warning}</Badge> : null}
+                {twitterFetched?.error ? <Badge className="border-red-300 text-red-600">{twitterFetched.error.slice(0, 120)}...</Badge> : null}
               </div>
 
               <div className="grid gap-2 md:grid-cols-2">
@@ -289,7 +637,7 @@ export function RealWorldSignals({
             <Button variant="outline" onClick={runFusion} disabled={loading || (!twitterAnalyzed && !newsAnalyzed)}>
               <Activity className="h-4 w-4" /> {lang === 'es' ? 'Actualizar Fusión' : 'Refresh Fusion'}
             </Button>
-            <Button variant="outline" onClick={() => onApply(editableCountry, editableCompany)} disabled={!fused}>
+            <Button variant="outline" onClick={() => onApply(appliedCountry, appliedCompany)} disabled={!fused}>
               {lang === 'es' ? 'Aplicar a Nueva Simulación' : 'Apply to New Simulation'}
             </Button>
             <Button variant="outline" onClick={async () => { setLoading(true); try { await api.refreshSignals(); await refreshTwitter(); await refreshNews(); await runFusion(); } catch (e) { onError((e as Error).message) } finally { setLoading(false) } }} disabled={loading}>
@@ -331,7 +679,15 @@ export function RealWorldSignals({
                   <SectionTitle title={lang === 'es' ? 'Impacto País' : 'Country Impact'} />
                   {Object.entries(editableCountry).map(([k, v]) => (
                     <div key={k} className="grid gap-2 sm:grid-cols-[1fr_140px] sm:items-center">
-                      <ImpactBar label={k} value={v} />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedCountryKeys[k] !== false}
+                          onChange={(e) => setSelectedCountryKeys((prev) => ({ ...prev, [k]: e.target.checked }))}
+                          title={lang === 'es' ? 'Incluir esta señal en la simulación' : 'Include this signal in simulation'}
+                        />
+                        <ImpactBar label={k} value={v} />
+                      </div>
                       <Select value={v} onChange={(e) => setEditableCountry((prev) => ({ ...prev, [k]: e.target.value as QualLevel }))}>
                         {QUAL_LEVELS.map((q) => (
                           <option key={q} value={q}>
@@ -347,7 +703,15 @@ export function RealWorldSignals({
                   <SectionTitle title={lang === 'es' ? 'Impacto Compañía' : 'Company Impact'} />
                   {Object.entries(editableCompany).map(([k, v]) => (
                     <div key={k} className="grid gap-2 sm:grid-cols-[1fr_140px] sm:items-center">
-                      <ImpactBar label={k} value={v} />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedCompanyKeys[k] !== false}
+                          onChange={(e) => setSelectedCompanyKeys((prev) => ({ ...prev, [k]: e.target.checked }))}
+                          title={lang === 'es' ? 'Incluir esta señal en la simulación' : 'Include this signal in simulation'}
+                        />
+                        <ImpactBar label={k} value={v} />
+                      </div>
                       <Select value={v} onChange={(e) => setEditableCompany((prev) => ({ ...prev, [k]: e.target.value as QualLevel }))}>
                         {QUAL_LEVELS.map((q) => (
                           <option key={q} value={q}>
@@ -370,5 +734,46 @@ export function RealWorldSignals({
         </div>
       ) : null}
     </Card>
+  )
+}
+
+function maybeQuote(term: string) {
+  const t = term.trim()
+  if (!t) return ''
+  return /\s/.test(t) ? `"${t}"` : t
+}
+
+function formatQueryParts(
+  includeTerms: string[],
+  geoTerms: string[],
+  excludeTerms: string[],
+  langCode: string,
+  excludeRetweet: boolean,
+  excludeReply: boolean,
+  requireLinks: boolean
+) {
+  const include = includeTerms.map(maybeQuote).filter(Boolean).join(' OR ')
+  const geo = geoTerms.map(maybeQuote).filter(Boolean).join(' OR ')
+  const negatives = excludeTerms.map((t) => `-${maybeQuote(t)}`).join(' ')
+  const filters = [
+    `lang:${langCode || 'es'}`,
+    excludeRetweet ? '-is:retweet' : '',
+    excludeReply ? '-is:reply' : '',
+    requireLinks ? '-has:links' : '',
+    negatives,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  if (!include && !geo) return filters
+  if (include && geo) return `((${include}) (${geo})) ${filters}`.trim()
+  return `(${include || geo}) ${filters}`.trim()
+}
+
+function TextPreview({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/30 p-3">
+      <p className="mb-1 text-xs text-slate-400">{title}</p>
+      <p className="break-words text-sm">{value}</p>
+    </div>
   )
 }

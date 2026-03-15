@@ -13,7 +13,7 @@ SCORE_TO_QUAL = {1: "very_low", 2: "low", 3: "medium", 4: "high", 5: "very_high"
 
 DEFAULT_X_QUERY = os.getenv(
     "X_QUERY_DEFAULT",
-    '"dólar blue" OR devaluación OR inflación OR bancos OR fintech OR "Mercado Pago" OR "Ualá" OR "Naranja X" OR corralito OR stablecoins OR bitcoin OR cashback OR promos OR BCRA lang:es -is:retweet',
+    "((dolar blue OR devaluacion OR inflacion OR bcra OR bancos OR fintech OR mercado pago OR uala OR naranja x OR corralito OR retiro de fondos OR stablecoin OR usdt OR bitcoin argentina OR cashback OR promo) (argentina OR ar)) lang:es -is:retweet -is:reply -has:links -futbol -amistoso -uefa -conmebol -mundial -piñon -españa -dominicanos",
 )
 
 TWITTER_PRESETS = [

@@ -69,6 +69,12 @@ def test_simulation_and_run_duplicate():
     run = r.get_json()
     assert run['outputs']['single_run']['timeline']
     assert 'monte_carlo' in run['outputs']
+    single = run['outputs']['single_run']
+    assert 'panic_index_score' in single
+    assert 0 <= single['panic_index_score'] <= 100
+    assert single['panic_index_label'] in {'Normal', 'Alert', 'Stressed', 'Panic'}
+    assert 'panic_index_components' in single
+    assert 'panic_index_main_driver' in single
 
     d = client.post(f"/runs/{run['id']}/duplicate")
     assert d.status_code == 200

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -11,6 +12,48 @@ from .signals import DEFAULT_X_QUERY, affected_archetypes_from_narratives, class
 
 class TwitterSignalClient:
     BASE_URL = "https://api.twitter.com/2/tweets/search/recent"
+    RELEVANCE_KEYWORDS = {
+        "dolar",
+        "dólar",
+        "dolar blue",
+        "devaluacion",
+        "devaluación",
+        "inflacion",
+        "inflación",
+        "bcra",
+        "banco central",
+        "bancos",
+        "fintech",
+        "mercado pago",
+        "uala",
+        "naranja x",
+        "corralito",
+        "retiro de fondos",
+        "stablecoin",
+        "stablecoins",
+        "usdt",
+        "bitcoin",
+        "crypto",
+        "cript",
+        "cashback",
+        "promo",
+        "promos",
+    }
+    NOISE_KEYWORDS = {
+        "futbol",
+        "fútbol",
+        "conmebol",
+        "uefa",
+        "mundial",
+        "amistoso",
+        "copa",
+        "gol",
+        "piñon",
+        "concierto",
+        "show",
+        "pelicula",
+        "serie",
+    }
 
     def __init__(self):
         self.bearer = os.getenv("X_BEARER_TOKEN", "")
@@ -34,9 +77,10 @@ class TwitterSignalClient:
         start_time = payload.get("start_time")
         end_time = payload.get("end_time")
         if not end_time:
-            end_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            # X API recent search requires end_time at least ~10s before now.
+            end_time = (datetime.now(timezone.utc) - timedelta(seconds=20)).isoformat().replace("+00:00", "Z")
         if not start_time:
-            start_time = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat().replace("+00:00", "Z")
+            start_time = (datetime.now(timezone.utc) - timedelta(hours=24, seconds=20)).isoformat().replace("+00:00", "Z")
 
         headers = {"Authorization": f"Bearer {self.bearer}"}
         params = {
@@ -63,20 +107,26 @@ class TwitterSignalClient:
         raw = res.json()
         users = {u["id"]: u for u in raw.get("includes", {}).get("users", [])}
         tweets = []
+        relevant_tweets = []
+        noise_tweets = []
         for t in raw.get("data", []) or []:
             u = users.get(t.get("author_id", ""), {})
-            tweets.append(
-                {
-                    "id": t.get("id"),
-                    "text": t.get("text", ""),
-                    "author": u.get("name") or u.get("username") or "unknown",
-                    "username": u.get("username", ""),
-                    "verified": bool(u.get("verified", False)),
-                    "created_at": t.get("created_at"),
-                    "metrics": t.get("public_metrics", {}),
-                    "url": f"https://x.com/{u.get('username', 'i')}/status/{t.get('id')}",
-                }
-            )
+            tweet = {
+                "id": t.get("id"),
+                "text": t.get("text", ""),
+                "author": u.get("name") or u.get("username") or "unknown",
+                "username": u.get("username", ""),
+                "verified": bool(u.get("verified", False)),
+                "created_at": t.get("created_at"),
+                "lang": t.get("lang"),
+                "metrics": t.get("public_metrics", {}),
+                "url": f"https://x.com/{u.get('username', 'i')}/status/{t.get('id')}",
+            }
+            tweets.append(tweet)
+            if self._is_relevant(tweet):
+                relevant_tweets.append(tweet)
+            else:
+                noise_tweets.append(tweet)
 
         return {
             "source_type": "twitter",
@@ -85,9 +135,40 @@ class TwitterSignalClient:
             "query": query,
             "start_time": start_time,
             "end_time": end_time,
-            "tweets": tweets,
+            "tweets": relevant_tweets,
+            "raw_tweets": tweets,
             "raw_count": len(tweets),
+            "relevant_count": len(relevant_tweets),
+            "noise_count": len(noise_tweets),
+            "noise_sample": noise_tweets[:8],
         }
+
+    @staticmethod
+    def _tokenize(text: str) -> str:
+        t = text.lower()
+        t = re.sub(r"https?://\S+", " ", t)
+        t = re.sub(r"[@#]\w+", " ", t)
+        t = re.sub(r"\s+", " ", t).strip()
+        return t
+
+    def _is_relevant(self, tweet: dict[str, Any]) -> bool:
+        text = self._tokenize(tweet.get("text", ""))
+        if not text:
+            return False
+
+        lang = (tweet.get("lang") or "").lower()
+        if lang and lang not in {"es"}:
+            return False
+
+        pos_hits = sum(1 for kw in self.RELEVANCE_KEYWORDS if kw in text)
+        neg_hits = sum(1 for kw in self.NOISE_KEYWORDS if kw in text)
+
+        # Keep financially meaningful tweets; reject obvious off-domain chatter.
+        if pos_hits == 0:
+            return False
+        if neg_hits > pos_hits:
+            return False
+        return True
 
     def analyze(self, fetched: dict[str, Any]) -> dict[str, Any]:
         tweets = fetched.get("tweets") or []
@@ -122,4 +203,7 @@ class TwitterSignalClient:
             "company_context_adjustment": company_vector,
             "tweet_sample": tweets[:20],
             "raw_count": total,
+            "relevant_count": fetched.get("relevant_count", total),
+            "noise_count": fetched.get("noise_count", 0),
+            "noise_sample": fetched.get("noise_sample", []),
         }

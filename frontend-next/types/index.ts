@@ -52,6 +52,10 @@ export type RunRecord = {
       liquidity_stress_proxy: number
       promo_abuse_risk_proxy: number
       trust_deterioration_proxy: number
+      panic_index_score?: number
+      panic_index_label?: 'Normal' | 'Alert' | 'Stressed' | 'Panic'
+      panic_index_components?: Record<string, unknown>
+      panic_index_main_driver?: string
       final_action_distribution: Record<string, number>
       archetype_level_breakdown: Record<string, Record<string, number>>
       timeline: Array<{
@@ -80,6 +84,17 @@ export type TwitterFetchResponse = {
   start_time?: string
   end_time?: string
   raw_count: number
+  relevant_count?: number
+  noise_count?: number
+  noise_sample?: Array<{
+    id?: string
+    text: string
+    author?: string
+    username?: string
+    created_at?: string
+    url?: string
+    lang?: string
+  }>
   warning?: string
   error?: string
   tweets: Array<{
@@ -89,6 +104,7 @@ export type TwitterFetchResponse = {
     username?: string
     verified?: boolean
     created_at?: string
+    lang?: string
     url?: string
     metrics?: Record<string, number>
   }>
@@ -112,10 +128,22 @@ export type TwitterAnalyzeResponse = {
     username?: string
     verified?: boolean
     created_at?: string
+    lang?: string
     url?: string
     metrics?: Record<string, number>
   }>
   raw_count: number
+  relevant_count?: number
+  noise_count?: number
+  noise_sample?: Array<{
+    id?: string
+    text: string
+    author?: string
+    username?: string
+    created_at?: string
+    url?: string
+    lang?: string
+  }>
 }
 
 export type NewsArticle = {
